@@ -399,6 +399,7 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
   const entry = DISCORD_STATUS[raw] ?? DISCORD_STATUS.offline;
 
   const activity = discord?.activity ?? null;
+  const name = discord?.displayName ?? entry.label;
 
   return (
     <li
@@ -448,9 +449,9 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
                 fontSize: "23px",
                 lineHeight: 1.15,
               }}
-              title={entry.label}
+              title={name}
             >
-              {entry.label}
+              {name}
             </div>
             <div
               className="mt-1 truncate text-[14px]"
