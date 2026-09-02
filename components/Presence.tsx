@@ -53,82 +53,374 @@ function Card({
   );
 }
 
-function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
-  const spotify = data?.spotify;
+// Ink colour for the hand-drawn Spotify card — a touch warmer than pure black.
+const SKETCH_INK = "#111";
+const HAND = "'Caveat', ui-sans-serif, cursive";
+const SCRAWL = "'Kalam', ui-sans-serif, cursive";
 
-  if (!spotify || spotify.status === "offline") {
-    return (
-      <Card title="Spotify">
-        <span className="text-neutral-500">Not playing</span>
-      </Card>
-    );
-  }
-
+/** Wobble filters + hatch pattern, shared by every stroke on the card. */
+function SketchDefs() {
   return (
-    <Card title="Spotify">
-      <div className="flex gap-3">
-        {spotify.albumArt ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={spotify.albumArt}
-            alt={spotify.album ?? ""}
-            className="h-12 w-12 rounded"
+    <svg
+      aria-hidden
+      width="0"
+      height="0"
+      style={{ position: "absolute", width: 0, height: 0 }}
+    >
+      <defs>
+        <filter
+          id="sketch-wobble"
+          x="-20%"
+          y="-20%"
+          width="140%"
+          height="140%"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.012 0.09"
+            numOctaves={2}
+            seed={7}
+            result="n"
           />
-        ) : null}
-        <div className="min-w-0">
-          <div className="truncate font-medium">
-            {spotify.trackUrl ? (
-              <a
-                href={spotify.trackUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                {spotify.track}
-              </a>
-            ) : (
-              spotify.track
-            )}
-          </div>
-          <div className="truncate text-neutral-500">{spotify.artist}</div>
-          <div className="text-xs text-neutral-400">
-            {spotify.isPlaying ? "Playing" : "Paused"}
-          </div>
-        </div>
-      </div>
-    </Card>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale={3.2} />
+        </filter>
+        <filter
+          id="sketch-wobble-tight"
+          x="-20%"
+          y="-20%"
+          width="140%"
+          height="140%"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.03 0.2"
+            numOctaves={2}
+            seed={3}
+            result="n2"
+          />
+          <feDisplacementMap in="SourceGraphic" in2="n2" scale={1.6} />
+        </filter>
+        <pattern
+          id="sketch-hatch"
+          width={6}
+          height={6}
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line x1={0} y1={0} x2={0} y2={6} stroke={SKETCH_INK} strokeWidth={1} />
+        </pattern>
+      </defs>
+    </svg>
   );
 }
 
-const DISCORD_STATUS_LABEL: Record<string, string> = {
-  online: "Online",
-  idle: "Idle",
-  dnd: "Do not disturb",
-  offline: "Offline",
+/** The spinning sketched record, with an album-art chip clipped to its corner. */
+function SketchDisc({
+  isPlaying,
+  albumArt,
+  album,
+}: {
+  isPlaying: boolean;
+  albumArt: string | null;
+  album: string | null;
+}) {
+  return (
+    <div className="relative h-[76px] w-[76px] flex-none">
+      <svg
+        width="76"
+        height="76"
+        viewBox="0 0 76 76"
+        style={{ position: "absolute", inset: 0, overflow: "visible" }}
+      >
+        {isPlaying ? (
+          <g
+            className="sketch-disc__streaks"
+            opacity={0.35}
+            style={{
+              animation: "sketch-streak-fade 1.4s ease-in-out infinite",
+            }}
+          >
+            <line x1="66" y1="14" x2="74" y2="8" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
+            <line x1="70" y1="26" x2="79" y2="23" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
+            <line x1="70" y1="50" x2="79" y2="54" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
+          </g>
+        ) : null}
+
+        <g
+          className="sketch-disc__spin"
+          style={{
+            transformOrigin: "38px 38px",
+            animation: "sketch-spin 3.2s linear infinite",
+            animationPlayState: isPlaying ? "running" : "paused",
+          }}
+        >
+          <clipPath id="sketch-disc-clip">
+            <circle cx="38" cy="38" r="30" />
+          </clipPath>
+          <rect x="38" y="24" width="24" height="28" fill="url(#sketch-hatch)" opacity="0.55" clipPath="url(#sketch-disc-clip)" filter="url(#sketch-wobble-tight)" />
+          <circle cx="38" cy="38" r="30" fill="none" stroke={SKETCH_INK} strokeWidth="2" filter="url(#sketch-wobble)" />
+          <circle cx="38" cy="38" r="29" fill="none" stroke={SKETCH_INK} strokeWidth="1" opacity="0.5" filter="url(#sketch-wobble)" />
+          <circle cx="38" cy="38" r="22" fill="none" stroke={SKETCH_INK} strokeWidth="1" filter="url(#sketch-wobble-tight)" />
+          <circle cx="38" cy="38" r="16" fill="none" stroke={SKETCH_INK} strokeWidth="1" filter="url(#sketch-wobble-tight)" />
+          <circle cx="38" cy="38" r="8" fill="url(#sketch-hatch)" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
+          <circle cx="38" cy="38" r="1.8" fill={SKETCH_INK} />
+        </g>
+      </svg>
+
+      <div
+        className="absolute -bottom-2 -right-2 h-7 w-7 overflow-hidden border-2 bg-white"
+        style={{
+          borderColor: SKETCH_INK,
+          transform: "rotate(-5deg)",
+          boxShadow: "2px 2px 0 rgba(17,17,17,0.15)",
+        }}
+      >
+        {albumArt ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={albumArt}
+            alt={album ?? ""}
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
+  const spotify = data?.spotify;
+  const offline = !spotify || spotify.status === "offline";
+  const isPlaying = !offline && spotify.isPlaying;
+
+  const track = offline ? "Nothing playing" : spotify.track ?? "Unknown track";
+  const artist = offline ? null : spotify.artist;
+  const statusLabel = offline ? "Offline" : isPlaying ? "Playing" : "Paused";
+
+  const trackNode =
+    !offline && spotify.trackUrl ? (
+      <a
+        href={spotify.trackUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="hover:opacity-70"
+      >
+        {track}
+      </a>
+    ) : (
+      track
+    );
+
+  return (
+    <li
+      className="relative min-h-[160px]"
+      style={{ fontFamily: SCRAWL, color: SKETCH_INK }}
+    >
+      <SketchDefs />
+
+      {/* hand-drawn double border */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ filter: "url(#sketch-wobble)" }}
+      >
+        <div
+          className="absolute inset-0 rounded-[10px] border-2"
+          style={{ borderColor: SKETCH_INK }}
+        />
+        <div
+          className="absolute inset-[3px] rounded-[9px] border"
+          style={{ borderColor: SKETCH_INK, opacity: 0.5 }}
+        />
+      </div>
+
+      <div className="relative flex h-full flex-col justify-center gap-3.5 p-5">
+        <div
+          style={{ fontFamily: HAND, fontWeight: 700, letterSpacing: "0.14em" }}
+          className="text-[15px]"
+        >
+          S P O T I F Y
+        </div>
+
+        <div className="flex items-center gap-4">
+          <SketchDisc
+            isPlaying={isPlaying}
+            albumArt={offline ? null : spotify.albumArt}
+            album={offline ? null : spotify.album}
+          />
+
+          <div className="min-w-0 flex-1">
+            <div
+              className="truncate"
+              style={{
+                fontFamily: HAND,
+                fontWeight: 700,
+                fontSize: "23px",
+                lineHeight: 1.15,
+                textDecoration: "underline",
+                textDecorationThickness: "1.5px",
+              }}
+              title={track}
+            >
+              {trackNode}
+            </div>
+            {artist ? (
+              <div
+                className="truncate"
+                style={{
+                  fontFamily: HAND,
+                  fontWeight: 500,
+                  fontSize: "17px",
+                  lineHeight: 1.3,
+                  opacity: 0.75,
+                }}
+                title={artist}
+              >
+                {artist}
+              </div>
+            ) : null}
+            <div
+              className="mt-1 text-[12px] italic"
+              style={{ opacity: 0.45 }}
+            >
+              {statusLabel}
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+const DISCORD_STATUS: Record<
+  string,
+  { label: string; color: string }
+> = {
+  online: { label: "Online", color: "#23a55a" },
+  idle: { label: "Idle", color: "#f0b232" },
+  dnd: { label: "Do Not Disturb", color: "#f23f43" },
+  offline: { label: "Offline", color: "#80848e" },
 };
+
+/** Sketched avatar circle with a hand-drawn status dot clipped to its corner. */
+function SketchAvatar({
+  dotColor,
+  offline,
+}: {
+  dotColor: string;
+  offline: boolean;
+}) {
+  return (
+    <div className="relative h-[76px] w-[76px] flex-none">
+      <svg
+        width="76"
+        height="76"
+        viewBox="0 0 76 76"
+        style={{ position: "absolute", inset: 0, overflow: "visible" }}
+      >
+        <circle
+          cx="34"
+          cy="34"
+          r="30"
+          fill="url(#sketch-hatch)"
+          opacity={0.35}
+          stroke={SKETCH_INK}
+          strokeWidth="2"
+          filter="url(#sketch-wobble)"
+        />
+        <circle
+          cx="34"
+          cy="34"
+          r="29"
+          fill="none"
+          stroke={SKETCH_INK}
+          strokeWidth="1"
+          opacity={0.5}
+          filter="url(#sketch-wobble)"
+        />
+
+        {/* status dot, punched out of the avatar with a white ring */}
+        <circle cx="58" cy="58" r="12" fill="white" />
+        <circle
+          cx="58"
+          cy="58"
+          r="9"
+          fill={offline ? "url(#sketch-hatch)" : dotColor}
+          stroke={SKETCH_INK}
+          strokeWidth="1.6"
+          filter="url(#sketch-wobble-tight)"
+        />
+      </svg>
+    </div>
+  );
+}
 
 function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
   const discord = data?.discord;
+  const raw = discord?.discordStatus ?? "offline";
+  const offline = !discord || discord.status === "offline";
+  const entry = DISCORD_STATUS[raw] ?? DISCORD_STATUS.offline;
 
-  if (!discord || discord.status === "offline") {
-    return (
-      <Card title="Discord">
-        <span className="text-neutral-500">Offline</span>
-      </Card>
-    );
-  }
+  const activity = discord?.activity ?? null;
 
   return (
-    <Card title="Discord">
-      <div className="font-medium">
-        {DISCORD_STATUS_LABEL[discord.discordStatus] ?? discord.discordStatus}
+    <li
+      className="relative min-h-[160px]"
+      style={{ fontFamily: SCRAWL, color: SKETCH_INK }}
+    >
+      <SketchDefs />
+
+      {/* hand-drawn double border */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ filter: "url(#sketch-wobble)" }}
+      >
+        <div
+          className="absolute inset-0 rounded-[10px] border-2"
+          style={{ borderColor: SKETCH_INK }}
+        />
+        <div
+          className="absolute inset-[3px] rounded-[9px] border"
+          style={{ borderColor: SKETCH_INK, opacity: 0.5 }}
+        />
       </div>
-      {discord.activity ? (
-        <div className="text-neutral-500">{discord.activity}</div>
-      ) : (
-        <div className="text-neutral-400">No activity</div>
-      )}
-    </Card>
+
+      <div className="relative flex h-full flex-col gap-3.5 p-5">
+        <div
+          style={{ fontFamily: HAND, fontWeight: 700, letterSpacing: "0.14em" }}
+          className="text-[15px]"
+        >
+          D I S C O R D
+        </div>
+
+        <div className="flex items-center gap-4">
+          <SketchAvatar dotColor={entry.color} offline={offline} />
+
+          <div className="min-w-0 flex-1">
+            <div
+              className="truncate"
+              style={{
+                fontFamily: HAND,
+                fontWeight: 700,
+                fontSize: "23px",
+                lineHeight: 1.15,
+              }}
+              title={entry.label}
+            >
+              {entry.label}
+            </div>
+            <div
+              className="mt-1 truncate text-[14px]"
+              style={{ opacity: activity ? 0.75 : 0.4 }}
+              title={activity ?? undefined}
+            >
+              {activity ?? (offline ? "—" : "No activity")}
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }
 
