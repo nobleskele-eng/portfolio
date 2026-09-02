@@ -5,9 +5,17 @@ interface LanyardActivity {
   type?: number;
 }
 
+interface LanyardUser {
+  id?: string;
+  username?: string;
+  global_name?: string | null;
+  avatar?: string | null;
+}
+
 interface LanyardData {
   discord_status?: DiscordRawStatus;
   activities?: LanyardActivity[];
+  discord_user?: LanyardUser;
 }
 
 interface LanyardResponse {
@@ -23,8 +31,28 @@ const OFFLINE: DiscordPresence = {
   updatedAt: null,
   discordStatus: "offline",
   activity: null,
+  avatarUrl: null,
+  displayName: null,
   inServer: false,
 };
+
+/** Builds a Discord CDN avatar URL, falling back to a default avatar. */
+function avatarUrlFor(user: LanyardUser | undefined): string | null {
+  if (!user?.id) return null;
+  if (user.avatar) {
+    const ext = user.avatar.startsWith("a_") ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=128`;
+  }
+  // Default avatar: legacy accounts key off the discriminator, but the new
+  // username system uses (id >> 22) % 6.
+  let index = 0;
+  try {
+    index = Number((BigInt(user.id) >> BigInt(22)) % BigInt(6));
+  } catch {
+    index = 0;
+  }
+  return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+}
 
 function normalize(discordStatus: DiscordRawStatus): DiscordPresence["status"] {
   if (discordStatus === "offline") return "offline";
@@ -63,12 +91,16 @@ export async function getDiscordPresence(): Promise<DiscordPresence> {
       activities.find((a) => a.name)?.name ??
       null;
 
+    const user = body.data.discord_user;
+
     return {
       status: normalize(discordStatus),
       detail: activity,
       updatedAt: Date.now(),
       discordStatus,
       activity,
+      avatarUrl: avatarUrlFor(user),
+      displayName: user?.global_name || user?.username || null,
       inServer: true,
     };
   } catch {

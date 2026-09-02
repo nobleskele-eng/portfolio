@@ -302,28 +302,65 @@ const DISCORD_STATUS: Record<
   offline: { label: "Offline", color: "#80848e" },
 };
 
-/** Sketched avatar circle with a hand-drawn status dot clipped to its corner. */
+/** Sketched avatar circle — real profile picture when available — with a
+ *  hand-drawn status dot punched into its corner. */
 function SketchAvatar({
   dotColor,
   offline,
+  avatarUrl,
+  displayName,
 }: {
   dotColor: string;
   offline: boolean;
+  avatarUrl: string | null;
+  displayName: string | null;
 }) {
   return (
     <div className="relative h-[76px] w-[76px] flex-none">
+      {avatarUrl ? (
+        <div
+          className="absolute overflow-hidden rounded-full"
+          style={{
+            top: 4,
+            left: 4,
+            width: 60,
+            height: 60,
+            filter: offline ? "grayscale(1)" : undefined,
+            opacity: offline ? 0.55 : 1,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarUrl}
+            alt={displayName ?? "Discord avatar"}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      ) : null}
+
       <svg
         width="76"
         height="76"
         viewBox="0 0 76 76"
         style={{ position: "absolute", inset: 0, overflow: "visible" }}
       >
+        {!avatarUrl ? (
+          <circle
+            cx="34"
+            cy="34"
+            r="30"
+            fill="url(#sketch-hatch)"
+            opacity={0.35}
+            stroke={SKETCH_INK}
+            strokeWidth="2"
+            filter="url(#sketch-wobble)"
+          />
+        ) : null}
         <circle
           cx="34"
           cy="34"
           r="30"
-          fill="url(#sketch-hatch)"
-          opacity={0.35}
+          fill="none"
           stroke={SKETCH_INK}
           strokeWidth="2"
           filter="url(#sketch-wobble)"
@@ -362,6 +399,7 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
   const entry = DISCORD_STATUS[raw] ?? DISCORD_STATUS.offline;
 
   const activity = discord?.activity ?? null;
+  const name = discord?.displayName ?? entry.label;
 
   return (
     <li
@@ -395,7 +433,12 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <SketchAvatar dotColor={entry.color} offline={offline} />
+          <SketchAvatar
+            dotColor={entry.color}
+            offline={offline}
+            avatarUrl={discord?.avatarUrl ?? null}
+            displayName={discord?.displayName ?? null}
+          />
 
           <div className="min-w-0 flex-1">
             <div
@@ -406,9 +449,9 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
                 fontSize: "23px",
                 lineHeight: 1.15,
               }}
-              title={entry.label}
+              title={name}
             >
-              {entry.label}
+              {name}
             </div>
             <div
               className="mt-1 truncate text-[14px]"
