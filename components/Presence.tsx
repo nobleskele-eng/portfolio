@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { PresenceSnapshot } from "@/lib/presence/types";
 
 // How often to re-fetch the presence snapshot, in ms.
@@ -38,462 +38,738 @@ function usePresence() {
   return { data, error };
 }
 
-function Card({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <li className="flex min-h-[160px] flex-col gap-2 rounded-xl border border-dashed border-neutral-400 p-6 text-sm">
-      <span className="placeholder-label">{title}</span>
-      {children}
-    </li>
-  );
-}
+/* ---- palette (ported from the presence-section design) ---- */
+const ACCENT = "oklch(0.65 0.14 45)";
+const INK = "#2a2620";
+const MUTE = "#b9b3a6";
+const GREEN = "#3fa66a";
+const AMBER = "#d99a34";
+const RED = "#d1544f";
+const GRAY = "#a8a29a";
 
-// Ink colour for the hand-drawn Spotify card — a touch warmer than pure black.
-const SKETCH_INK = "#111";
-const HAND = "'Caveat', ui-sans-serif, cursive";
-const SCRAWL = "'Kalam', ui-sans-serif, cursive";
-
-/** Wobble filters + hatch pattern, shared by every stroke on the card. */
-function SketchDefs() {
-  return (
-    <svg
-      aria-hidden
-      width="0"
-      height="0"
-      style={{ position: "absolute", width: 0, height: 0 }}
-    >
-      <defs>
-        <filter
-          id="sketch-wobble"
-          x="-20%"
-          y="-20%"
-          width="140%"
-          height="140%"
-        >
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.012 0.09"
-            numOctaves={2}
-            seed={7}
-            result="n"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="n" scale={3.2} />
-        </filter>
-        <filter
-          id="sketch-wobble-tight"
-          x="-20%"
-          y="-20%"
-          width="140%"
-          height="140%"
-        >
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.03 0.2"
-            numOctaves={2}
-            seed={3}
-            result="n2"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="n2" scale={1.6} />
-        </filter>
-        <pattern
-          id="sketch-hatch"
-          width={6}
-          height={6}
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <line x1={0} y1={0} x2={0} y2={6} stroke={SKETCH_INK} strokeWidth={1} />
-        </pattern>
-      </defs>
-    </svg>
-  );
-}
-
-/** The spinning sketched record, with an album-art chip clipped to its corner. */
-function SketchDisc({
-  isPlaying,
-  albumArt,
-  album,
-}: {
-  isPlaying: boolean;
-  albumArt: string | null;
-  album: string | null;
-}) {
-  return (
-    <div className="relative h-[76px] w-[76px] flex-none">
-      <svg
-        width="76"
-        height="76"
-        viewBox="0 0 76 76"
-        style={{ position: "absolute", inset: 0, overflow: "visible" }}
-      >
-        {isPlaying ? (
-          <g
-            className="sketch-disc__streaks"
-            opacity={0.35}
-            style={{
-              animation: "sketch-streak-fade 1.4s ease-in-out infinite",
-            }}
-          >
-            <line x1="66" y1="14" x2="74" y2="8" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
-            <line x1="70" y1="26" x2="79" y2="23" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
-            <line x1="70" y1="50" x2="79" y2="54" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
-          </g>
-        ) : null}
-
-        <g
-          className="sketch-disc__spin"
-          style={{
-            transformOrigin: "38px 38px",
-            animation: "sketch-spin 3.2s linear infinite",
-            animationPlayState: isPlaying ? "running" : "paused",
-          }}
-        >
-          <clipPath id="sketch-disc-clip">
-            <circle cx="38" cy="38" r="30" />
-          </clipPath>
-          <rect x="38" y="24" width="24" height="28" fill="url(#sketch-hatch)" opacity="0.55" clipPath="url(#sketch-disc-clip)" filter="url(#sketch-wobble-tight)" />
-          <circle cx="38" cy="38" r="30" fill="none" stroke={SKETCH_INK} strokeWidth="2" filter="url(#sketch-wobble)" />
-          <circle cx="38" cy="38" r="29" fill="none" stroke={SKETCH_INK} strokeWidth="1" opacity="0.5" filter="url(#sketch-wobble)" />
-          <circle cx="38" cy="38" r="22" fill="none" stroke={SKETCH_INK} strokeWidth="1" filter="url(#sketch-wobble-tight)" />
-          <circle cx="38" cy="38" r="16" fill="none" stroke={SKETCH_INK} strokeWidth="1" filter="url(#sketch-wobble-tight)" />
-          <circle cx="38" cy="38" r="8" fill="url(#sketch-hatch)" stroke={SKETCH_INK} strokeWidth="1.5" filter="url(#sketch-wobble-tight)" />
-          <circle cx="38" cy="38" r="1.8" fill={SKETCH_INK} />
-        </g>
-      </svg>
-
-      <div
-        className="absolute -bottom-2 -right-2 h-7 w-7 overflow-hidden border-2 bg-white"
-        style={{
-          borderColor: SKETCH_INK,
-          transform: "rotate(-5deg)",
-          boxShadow: "2px 2px 0 rgba(17,17,17,0.15)",
-        }}
-      >
-        {albumArt ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={albumArt}
-            alt={album ?? ""}
-            className="h-full w-full object-cover"
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
-  const spotify = data?.spotify;
-  const offline = !spotify || spotify.status === "offline";
-  const isPlaying = !offline && spotify.isPlaying;
-
-  const track = offline ? "Nothing playing" : spotify.track ?? "Unknown track";
-  const artist = offline ? null : spotify.artist;
-  const statusLabel = offline ? "Offline" : isPlaying ? "Playing" : "Paused";
-
-  const trackNode =
-    !offline && spotify.trackUrl ? (
-      <a
-        href={spotify.trackUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="hover:opacity-70"
-      >
-        {track}
-      </a>
-    ) : (
-      track
-    );
-
-  return (
-    <li
-      className="relative min-h-[160px]"
-      style={{ fontFamily: SCRAWL, color: SKETCH_INK }}
-    >
-      <SketchDefs />
-
-      {/* hand-drawn double border */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ filter: "url(#sketch-wobble)" }}
-      >
-        <div
-          className="absolute inset-0 rounded-[10px] border-2"
-          style={{ borderColor: SKETCH_INK }}
-        />
-        <div
-          className="absolute inset-[3px] rounded-[9px] border"
-          style={{ borderColor: SKETCH_INK, opacity: 0.5 }}
-        />
-      </div>
-
-      <div className="relative flex h-full flex-col justify-center gap-3.5 p-5">
-        <div
-          style={{ fontFamily: HAND, fontWeight: 700, letterSpacing: "0.14em" }}
-          className="text-[15px]"
-        >
-          S P O T I F Y
-        </div>
-
-        <div className="flex items-center gap-4">
-          <SketchDisc
-            isPlaying={isPlaying}
-            albumArt={offline ? null : spotify.albumArt}
-            album={offline ? null : spotify.album}
-          />
-
-          <div className="min-w-0 flex-1">
-            <div
-              className="truncate"
-              style={{
-                fontFamily: HAND,
-                fontWeight: 700,
-                fontSize: "23px",
-                lineHeight: 1.15,
-                textDecoration: "underline",
-                textDecorationThickness: "1.5px",
-              }}
-              title={track}
-            >
-              {trackNode}
-            </div>
-            {artist ? (
-              <div
-                className="truncate"
-                style={{
-                  fontFamily: HAND,
-                  fontWeight: 500,
-                  fontSize: "17px",
-                  lineHeight: 1.3,
-                  opacity: 0.75,
-                }}
-                title={artist}
-              >
-                {artist}
-              </div>
-            ) : null}
-            <div
-              className="mt-1 text-[12px] italic"
-              style={{ opacity: 0.45 }}
-            >
-              {statusLabel}
-            </div>
-          </div>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-const DISCORD_STATUS: Record<
-  string,
-  { label: string; color: string }
-> = {
-  online: { label: "Online", color: "#23a55a" },
-  idle: { label: "Idle", color: "#f0b232" },
-  dnd: { label: "Do Not Disturb", color: "#f23f43" },
-  offline: { label: "Offline", color: "#80848e" },
+const CARD_STYLE: CSSProperties = {
+  background: "#fffdfa",
+  borderRadius: 18,
+  boxShadow:
+    "0 1px 2px rgba(42,38,32,0.05),0 12px 28px -12px rgba(42,38,32,0.14)",
+  padding: 26,
+  position: "relative",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
 };
 
-/** Sketched avatar circle — real profile picture when available — with a
- *  hand-drawn status dot punched into its corner. */
-function SketchAvatar({
-  dotColor,
-  offline,
-  avatarUrl,
-  displayName,
-}: {
-  dotColor: string;
-  offline: boolean;
-  avatarUrl: string | null;
-  displayName: string | null;
-}) {
+const CARD_LABEL_STYLE: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: INK,
+  marginBottom: 22,
+};
+
+const MONO = "ui-monospace,'SF Mono',Menlo,monospace";
+
+function run(on: boolean): CSSProperties["animationPlayState"] {
+  return on ? "running" : "paused";
+}
+
+/* ============================ SPOTIFY ============================ */
+function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
+  const sp = data?.spotify;
+  const offline = !sp || sp.status === "offline";
+  const active = !offline && sp.isPlaying;
+
+  const opacity = offline ? 0.35 : active ? 1 : 0.75;
+  const filter = offline ? "grayscale(1)" : "none";
+  const accent = offline ? MUTE : ACCENT;
+  const track = offline ? "Nothing playing" : sp.track ?? "Unknown track";
+  const artist = offline ? "" : sp.artist ?? "";
+  const stateLabel = active ? "Playing" : offline ? "Offline" : "Paused";
+  const albumArt = offline ? null : sp.albumArt;
+
   return (
-    <div className="relative h-[76px] w-[76px] flex-none">
-      {avatarUrl ? (
+    <div style={CARD_STYLE} className="lg:col-span-2">
+      <div style={CARD_LABEL_STYLE}>Spotify</div>
+
+      <div style={{ display: "flex", gap: 22, alignItems: "center" }}>
         <div
-          className="absolute overflow-hidden rounded-full"
-          style={{
-            top: 4,
-            left: 4,
-            width: 60,
-            height: 60,
-            filter: offline ? "grayscale(1)" : undefined,
-            opacity: offline ? 0.55 : 1,
-          }}
+          style={{ position: "relative", width: 96, height: 96, flex: "none" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={avatarUrl}
-            alt={displayName ?? "Discord avatar"}
-            className="h-full w-full object-cover"
-          />
+          {/* vinyl disc */}
+          <div
+            data-pf-anim
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              filter,
+              animation: "pf-spin 3.6s linear infinite",
+              animationPlayState: run(active),
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                border: `2px solid ${INK}`,
+                opacity: 0.85,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 10,
+                borderRadius: "50%",
+                border: `1px solid ${INK}`,
+                opacity: 0.35,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 22,
+                borderRadius: "50%",
+                border: `1px solid ${INK}`,
+                opacity: 0.35,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 40,
+                borderRadius: "50%",
+                background: accent,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                margin: "auto",
+                top: 46,
+                left: 46,
+                width: 4,
+                height: 4,
+                borderRadius: "50%",
+                background: INK,
+              }}
+            />
+          </div>
+
+          {/* album art chip */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: -6,
+              right: -6,
+              width: 34,
+              height: 34,
+              borderRadius: 6,
+              overflow: "hidden",
+              background: albumArt
+                ? undefined
+                : "repeating-linear-gradient(45deg,#e7e2d6 0,#e7e2d6 4px,#f6f4ef 4px,#f6f4ef 8px)",
+              border: "2px solid #fffdfa",
+              boxShadow: "0 1px 3px rgba(42,38,32,0.2)",
+              opacity,
+            }}
+          >
+            {albumArt ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={albumArt}
+                alt={sp?.album ?? ""}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : null}
+          </div>
         </div>
-      ) : null}
 
-      <svg
-        width="76"
-        height="76"
-        viewBox="0 0 76 76"
-        style={{ position: "absolute", inset: 0, overflow: "visible" }}
-      >
-        {!avatarUrl ? (
-          <circle
-            cx="34"
-            cy="34"
-            r="30"
-            fill="url(#sketch-hatch)"
-            opacity={0.35}
-            stroke={SKETCH_INK}
-            strokeWidth="2"
-            filter="url(#sketch-wobble)"
-          />
-        ) : null}
-        <circle
-          cx="34"
-          cy="34"
-          r="30"
-          fill="none"
-          stroke={SKETCH_INK}
-          strokeWidth="2"
-          filter="url(#sketch-wobble)"
-        />
-        <circle
-          cx="34"
-          cy="34"
-          r="29"
-          fill="none"
-          stroke={SKETCH_INK}
-          strokeWidth="1"
-          opacity={0.5}
-          filter="url(#sketch-wobble)"
-        />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ position: "relative" }}>
+            {/* little bobbing listener */}
+            <div
+              data-pf-anim
+              style={{
+                position: "absolute",
+                left: 2,
+                bottom: "100%",
+                width: 19,
+                filter,
+                opacity: offline ? 0.4 : 1,
+                animation: "pf-bob 1.1s ease-in-out infinite",
+                animationPlayState: run(active),
+              }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 9,
+                  borderRadius: 3,
+                  background: accent,
+                  margin: "0 auto",
+                }}
+              />
+              <div
+                style={{
+                  width: 19,
+                  height: 16,
+                  borderRadius: 4,
+                  background: accent,
+                  marginTop: 1,
+                }}
+              />
+            </div>
 
-        {/* status dot, punched out of the avatar with a white ring */}
-        <circle cx="58" cy="58" r="12" fill="white" />
-        <circle
-          cx="58"
-          cy="58"
-          r="9"
-          fill={offline ? "url(#sketch-hatch)" : dotColor}
-          stroke={SKETCH_INK}
-          strokeWidth="1.6"
-          filter="url(#sketch-wobble-tight)"
-        />
-      </svg>
+            <TrackTitle
+              text={track}
+              url={offline ? null : sp?.trackUrl ?? null}
+              opacity={opacity}
+            />
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              color: "#6f695d",
+              marginTop: 2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              opacity,
+            }}
+          >
+            {artist}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 12,
+            }}
+          >
+            <span
+              data-pf-anim
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: offline ? GRAY : ACCENT,
+                animation: "pf-pulse 1.4s ease-in-out infinite",
+                animationPlayState: run(active),
+              }}
+            />
+            <span
+              style={{ fontSize: 12, fontFamily: MONO, color: "#8a8377" }}
+            >
+              {stateLabel}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
-  const discord = data?.discord;
-  const raw = discord?.discordStatus ?? "offline";
-  const offline = !discord || discord.status === "offline";
-  const entry = DISCORD_STATUS[raw] ?? DISCORD_STATUS.offline;
-
-  const activity = discord?.activity ?? null;
-  const name = discord?.displayName ?? entry.label;
-
-  return (
-    <li
-      className="relative min-h-[160px]"
-      style={{ fontFamily: SCRAWL, color: SKETCH_INK }}
-    >
-      <SketchDefs />
-
-      {/* hand-drawn double border */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ filter: "url(#sketch-wobble)" }}
+function TrackTitle({
+  text,
+  url,
+  opacity,
+}: {
+  text: string;
+  url: string | null;
+  opacity: number;
+}) {
+  const style: CSSProperties = {
+    fontSize: 20,
+    fontWeight: 600,
+    color: INK,
+    lineHeight: 1.25,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    opacity,
+  };
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        title={text}
+        style={{ ...style, display: "block", textDecoration: "none" }}
       >
-        <div
-          className="absolute inset-0 rounded-[10px] border-2"
-          style={{ borderColor: SKETCH_INK }}
-        />
-        <div
-          className="absolute inset-[3px] rounded-[9px] border"
-          style={{ borderColor: SKETCH_INK, opacity: 0.5 }}
-        />
-      </div>
-
-      <div className="relative flex h-full flex-col gap-3.5 p-5">
-        <div
-          style={{ fontFamily: HAND, fontWeight: 700, letterSpacing: "0.14em" }}
-          className="text-[15px]"
-        >
-          D I S C O R D
-        </div>
-
-        <div className="flex items-center gap-4">
-          <SketchAvatar
-            dotColor={entry.color}
-            offline={offline}
-            avatarUrl={discord?.avatarUrl ?? null}
-            displayName={discord?.displayName ?? null}
-          />
-
-          <div className="min-w-0 flex-1">
-            <div
-              className="truncate"
-              style={{
-                fontFamily: HAND,
-                fontWeight: 700,
-                fontSize: "23px",
-                lineHeight: 1.15,
-              }}
-              title={name}
-            >
-              {name}
-            </div>
-            <div
-              className="mt-1 truncate text-[14px]"
-              style={{ opacity: activity ? 0.75 : 0.4 }}
-              title={activity ?? undefined}
-            >
-              {activity ?? (offline ? "—" : "No activity")}
-            </div>
-          </div>
-        </div>
-      </div>
-    </li>
+        {text}
+      </a>
+    );
+  }
+  return (
+    <div style={style} title={text}>
+      {text}
+    </div>
   );
 }
 
+/* ============================ DISCORD ============================ */
+const DISCORD_COLORS: Record<string, string> = {
+  online: GREEN,
+  idle: AMBER,
+  dnd: RED,
+  offline: GRAY,
+};
+const DISCORD_LABELS: Record<string, string> = {
+  online: "Online",
+  idle: "Idle",
+  dnd: "Do Not Disturb",
+  offline: "Offline",
+};
+
+function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
+  const dc = data?.discord;
+  const raw = dc?.discordStatus ?? "offline";
+  const offline = !dc || dc.status === "offline";
+  const active = raw === "online";
+
+  const color = DISCORD_COLORS[raw] ?? GRAY;
+  const name = dc?.displayName ?? DISCORD_LABELS[raw] ?? "Offline";
+  const activity = offline ? "—" : dc?.activity ?? "No activity";
+  const avatarUrl = dc?.avatarUrl ?? null;
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={CARD_LABEL_STYLE}>Discord</div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div
+          style={{ position: "relative", width: 44, height: 44, flex: "none" }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: avatarUrl
+                ? undefined
+                : "repeating-linear-gradient(45deg,#e7e2d6 0,#e7e2d6 4px,#f6f4ef 4px,#f6f4ef 8px)",
+              border: "2px solid #fffdfa",
+              boxShadow: "0 1px 3px rgba(42,38,32,0.15)",
+              filter: offline ? "grayscale(1)" : "none",
+              opacity: offline ? 0.5 : 1,
+            }}
+          >
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={dc?.displayName ?? "Discord avatar"}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : null}
+          </div>
+          <span
+            data-pf-anim
+            style={{
+              position: "absolute",
+              bottom: -2,
+              right: -2,
+              width: 15,
+              height: 15,
+              borderRadius: "50%",
+              background: color,
+              border: "3px solid #fffdfa",
+              animation: "pf-pulse 1.6s ease-in-out infinite",
+              animationPlayState: run(active),
+            }}
+          />
+        </div>
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            color: INK,
+            opacity: offline ? 0.4 : 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={name}
+        >
+          {name}
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          fontSize: 13,
+          color: "#8a8377",
+          opacity: offline ? 0.5 : 0.85,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+        title={activity}
+      >
+        {activity}
+      </div>
+    </div>
+  );
+}
+
+/* ========================== CLAUDE CODE ========================== */
+function ClaudeCard({ data }: { data: PresenceSnapshot | null }) {
+  const cc = data?.claudeCode;
+  const offline = !cc || cc.status === "offline";
+  const active = !offline && cc.status === "active";
+
+  const filter = offline ? "grayscale(1)" : "none";
+  const color = offline ? MUTE : ACCENT;
+  const stateLabel = offline ? "No session" : active ? "Active" : "Idle";
+  const projectText = offline ? "—" : cc?.detail ?? "session";
+  const rawTool = cc?.rawStatus ?? "";
+  const toolText =
+    offline || ["active", "idle", "offline"].includes(rawTool) ? "" : rawTool;
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={{ ...CARD_LABEL_STYLE, marginBottom: 18 }}>Claude Code</div>
+
+      <div
+        style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 76 }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 76,
+            height: 52,
+            filter,
+            opacity: offline ? 0.5 : 1,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 6,
+              bottom: 10,
+              width: 64,
+              height: 3,
+              background: INK,
+              opacity: 0.5,
+              borderRadius: 2,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 14,
+              bottom: 13,
+              width: 40,
+              height: 24,
+              borderRadius: 3,
+              background: "#efece3",
+              border: `1.5px solid ${INK}`,
+              opacity: 0.7,
+            }}
+          />
+          <div
+            data-pf-anim
+            style={{
+              position: "absolute",
+              left: 20,
+              bottom: 20,
+              width: 5,
+              height: 8,
+              background: INK,
+              opacity: offline ? 0 : 1,
+              animation: "pf-blink 1s step-end infinite",
+              animationPlayState: run(active),
+            }}
+          />
+          <div style={{ position: "absolute", left: 20, bottom: 16, width: 20 }}>
+            <div
+              style={{
+                width: 13,
+                height: 10,
+                borderRadius: 3,
+                background: color,
+                margin: "0 auto",
+              }}
+            />
+            <div
+              style={{
+                width: 20,
+                height: 18,
+                borderRadius: 4,
+                background: color,
+                marginTop: 1,
+              }}
+            />
+            <div
+              data-pf-anim
+              style={{
+                position: "absolute",
+                top: 8,
+                right: -3,
+                width: 12,
+                height: 5,
+                borderRadius: 2,
+                background: color,
+                transformOrigin: "left center",
+                animation: "pf-tap 0.55s ease-in-out infinite",
+                animationPlayState: run(active),
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: INK,
+            fontFamily: MONO,
+            opacity: offline ? 0.35 : 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={projectText}
+        >
+          {projectText}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 8,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: offline ? GRAY : active ? GREEN : AMBER,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "#8a8377" }}>{stateLabel}</span>
+          {toolText ? (
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: 10,
+                padding: "2px 6px",
+                borderRadius: 5,
+                background: "#efece3",
+                color: "#6f695d",
+              }}
+            >
+              {toolText}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ========================= AFTER EFFECTS ========================= */
+function AfterEffectsCard({ data }: { data: PresenceSnapshot | null }) {
+  const ae = data?.afterEffects;
+  const offline = !ae || ae.status === "offline";
+  const rawStatus = ae?.rawStatus?.toLowerCase() ?? "";
+  const rendering = !offline && /render/.test(rawStatus);
+  const editing = !offline && !rendering && ae?.status === "active";
+  const active = editing || rendering;
+
+  const filter = offline ? "grayscale(1)" : "none";
+  const color = offline ? MUTE : ACCENT;
+  const stateLabel = offline
+    ? "No session"
+    : rendering
+    ? "Rendering"
+    : editing
+    ? "Editing"
+    : "Idle";
+  const projectText = offline ? "—" : ae?.detail ?? "project.aep";
+  const dotColor = offline ? GRAY : rendering || editing ? GREEN : AMBER;
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={{ ...CARD_LABEL_STYLE, marginBottom: 18 }}>After Effects</div>
+
+      <div
+        style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 76 }}
+      >
+        <div
+          data-pf-anim
+          style={{
+            width: 20,
+            position: "relative",
+            filter,
+            opacity: offline ? 0.45 : 1,
+            animation: "pf-bob 1.2s ease-in-out infinite",
+            animationPlayState: run(editing && !rendering),
+          }}
+        >
+          <div
+            style={{
+              width: 13,
+              height: 10,
+              borderRadius: 3,
+              background: color,
+              margin: "0 auto",
+            }}
+          />
+          <div
+            style={{
+              width: 20,
+              height: 18,
+              borderRadius: 4,
+              background: color,
+              marginTop: 1,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 6,
+              left: 16,
+              width: 11,
+              height: 5,
+              borderRadius: 2,
+              background: color,
+              transform: "rotate(-25deg)",
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14, position: "relative", height: 14 }}>
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 6,
+            height: 2,
+            background: INK,
+            opacity: 0.18,
+            borderRadius: 2,
+          }}
+        />
+        <div
+          data-pf-anim
+          style={{
+            position: "absolute",
+            top: 2,
+            width: 2,
+            height: 10,
+            background: offline ? GRAY : ACCENT,
+            opacity: offline ? 0.4 : 1,
+            left: "6%",
+            animation: "pf-scrub 2.4s ease-in-out infinite",
+            animationPlayState: run(editing),
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          height: 4,
+          borderRadius: 3,
+          background: "#efece3",
+          overflow: "hidden",
+          display: rendering ? "block" : "none",
+        }}
+      >
+        <div
+          data-pf-anim
+          style={{
+            width: "40%",
+            height: "100%",
+            borderRadius: 3,
+            background: ACCENT,
+            animation: "pf-render 1.1s ease-in-out infinite",
+          }}
+        />
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: INK,
+            fontFamily: MONO,
+            opacity: offline ? 0.35 : 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={projectText}
+        >
+          {projectText}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 8,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: dotColor,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "#8a8377" }}>{stateLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ SECTION ============================ */
 export default function Presence() {
   const { data, error } = usePresence();
 
   return (
     <section
       aria-label="Presence"
-      className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24"
+      style={{
+        fontFamily:
+          "'Space Grotesk',-apple-system,'Helvetica Neue',Arial,sans-serif",
+        background: "#f6f4ef",
+      }}
+      className="w-full px-8 py-24"
     >
-      <h2 className="placeholder-label mb-8 text-sm">[NEEDS COPY — section heading]</h2>
+      <div style={{ maxWidth: 1240, margin: "0 auto" }}>
+        <h2 className="placeholder-label mb-7">[NEEDS COPY — section heading]</h2>
 
-      {error ? (
-        <p className="mb-4 text-xs text-neutral-400">
-          Couldn&apos;t load live presence.
-        </p>
-      ) : null}
+        {error ? (
+          <p className="mb-4 text-xs text-neutral-400">
+            Couldn&apos;t load live presence.
+          </p>
+        ) : null}
 
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SpotifyCard data={data} />
-        <DiscordCard data={data} />
-
-        <li className="flex min-h-[160px] items-center justify-center rounded-xl border border-dashed border-neutral-400 p-6 text-center text-sm font-medium">
-          [CLAUDE CODE]
-        </li>
-        <li className="flex min-h-[160px] items-center justify-center rounded-xl border border-dashed border-neutral-400 p-6 text-center text-sm font-medium">
-          [AFTER EFFECTS]
-        </li>
-      </ul>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          <SpotifyCard data={data} />
+          <DiscordCard data={data} />
+          <ClaudeCard data={data} />
+          <AfterEffectsCard data={data} />
+        </div>
+      </div>
     </section>
   );
 }

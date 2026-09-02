@@ -39,3 +39,72 @@ body {
     animation: none !important;
   }
 }
+
+/* Live presence cards — activity-driven micro-animations. */
+@keyframes pf-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes pf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pf-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes pf-scrub {
+  0% {
+    left: 6%;
+  }
+  50% {
+    left: 86%;
+  }
+  100% {
+    left: 6%;
+  }
+}
+@keyframes pf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes pf-tap {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-22deg);
+  }
+}
+@keyframes pf-render {
+  0% {
+    transform: translateX(-45%);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-pf-anim] {
+    animation: none !important;
+  }
+}
