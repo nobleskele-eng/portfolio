@@ -1,33 +1,46 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
+import type { AgentSource } from "@/lib/presence/types";
 
-const TTL_SECONDS = 300;
+// How long a written key is kept in Redis before it self-expires. This is only a
+// garbage-collection safety net — the authoritative "is this source offline?"
+// decision lives in app/api/presence/route.ts (STALE_THRESHOLD_MS), keyed off the
+// stored `lastSeen`. Kept generous so a paused agent's last status is still
+// readable for debugging.
+const GC_TTL_SECONDS = 86_400;
 
-type PresenceSource = "claude-code" | "after-effects";
+const VALID_SOURCES: AgentSource[] = ["claude-code", "after-effects"];
 
 interface PresenceUpdateBody {
-  source: PresenceSource;
-  status: string;
-  detail?: string;
+  source: AgentSource;
+  status: Record<string, unknown>;
+  timestamp: number;
 }
 
-const VALID_SOURCES: PresenceSource[] = ["claude-code", "after-effects"];
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
 
 function isValidBody(value: unknown): value is PresenceUpdateBody {
-  if (typeof value !== "object" || value === null) return false;
-  const body = value as Record<string, unknown>;
+  if (!isPlainObject(value)) return false;
   return (
-    typeof body.source === "string" &&
-    VALID_SOURCES.includes(body.source as PresenceSource) &&
-    typeof body.status === "string" &&
-    body.status.length > 0 &&
-    (body.detail === undefined || typeof body.detail === "string")
+    typeof value.source === "string" &&
+    VALID_SOURCES.includes(value.source as AgentSource) &&
+    isPlainObject(value.status) &&
+    typeof value.timestamp === "number" &&
+    Number.isFinite(value.timestamp)
   );
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.PRESENCE_SECRET;
-  if (!secret || req.headers.get("x-presence-secret") !== secret) {
+  const expected = process.env.PRESENCE_WRITE_TOKEN;
+  const provided = req.headers.get("authorization");
+
+  if (!expected || provided !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,16 +55,22 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "Body must be { source: 'claude-code' | 'after-effects', status: string, detail?: string }",
+          "Body must be { source: 'claude-code' | 'after-effects', status: object, timestamp: number }",
       },
       { status: 400 }
     );
   }
 
-  const { source, status, detail } = payload;
-  const value = JSON.stringify({ source, status, detail, updatedAt: Date.now() });
+  const { source, status, timestamp } = payload;
 
-  await redis.set(`presence:${source}`, value, { ex: TTL_SECONDS });
+  // Store the raw status object plus a lastSeen stamp. The reader
+  // (lib/presence/agents.ts) is responsible for projecting this onto the
+  // AgentPresence shape.
+  await redis.set(
+    `presence:${source}`,
+    JSON.stringify({ status, lastSeen: timestamp }),
+    { ex: GC_TTL_SECONDS }
+  );
 
   return NextResponse.json({ ok: true });
 }

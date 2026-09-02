@@ -56,5 +56,3 @@ export interface PresenceSnapshot {
   notebookLM: null;
   googleDocs: null;
 }
-
-export const OFFLINE_MAX_AGE_MS = 300_000;
