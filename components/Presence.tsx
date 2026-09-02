@@ -600,7 +600,7 @@ function AfterEffectsCard({ data }: { data: PresenceSnapshot | null }) {
   const dotColor = offline ? GRAY : rendering || editing ? GREEN : AMBER;
 
   return (
-    <div style={CARD_STYLE}>
+    <div style={CARD_STYLE} className="sm:col-span-2 lg:col-span-4">
       <div style={{ ...CARD_LABEL_STYLE, marginBottom: 18 }}>After Effects</div>
 
       <div
@@ -763,7 +763,7 @@ export default function Presence() {
           </p>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <SpotifyCard data={data} />
           <DiscordCard data={data} />
           <ClaudeCard data={data} />
