@@ -32,6 +32,10 @@ export interface DiscordPresence extends BasePresence {
   /** Discord's own status vocabulary, kept for richer rendering. */
   discordStatus: DiscordRawStatus;
   activity: string | null;
+  /** CDN URL of the user's avatar (falls back to a Discord default), or null. */
+  avatarUrl: string | null;
+  /** Display name / username, or null when unknown. */
+  displayName: string | null;
   /** false when Lanyard reports the user is not in the required server. */
   inServer: boolean;
 }
