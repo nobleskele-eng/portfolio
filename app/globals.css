@@ -15,3 +15,27 @@ body {
 .placeholder-label {
   @apply font-mono text-xs uppercase tracking-widest text-neutral-500;
 }
+
+/* Hand-drawn Spotify presence card. */
+@keyframes sketch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sketch-streak-fade {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sketch-disc__spin,
+  .sketch-disc__streaks {
+    animation: none !important;
+  }
+}
