@@ -1,0 +1,14 @@
+{
+  "name": "spotify-token",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One-off helper to obtain a Spotify refresh token for the now-playing widget",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node get-spotify-token.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}

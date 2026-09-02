@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white text-neutral-900 antialiased;
+  overflow-x: hidden;
+}
+
+/* Shared look for layout-stage placeholders. */
+.placeholder-label {
+  @apply font-mono text-xs uppercase tracking-widest text-neutral-500;
+}
