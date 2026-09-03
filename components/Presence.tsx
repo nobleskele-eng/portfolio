@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { PresenceSnapshot } from "@/lib/presence/types";
+import PresenceMascot from "./PresenceMascot";
 
 // How often to re-fetch the presence snapshot, in ms.
 const POLL_INTERVAL_MS = 30_000;
@@ -74,7 +75,57 @@ function run(on: boolean): CSSProperties["animationPlayState"] {
   return on ? "running" : "paused";
 }
 
-/* ============================ SPOTIFY ============================ */
+/**
+ * Wraps a card so a mascot can perch on one of its edges without being clipped
+ * by the card's own `overflow: hidden`. `perch` is placed after the card in the
+ * DOM (so it sits in front); by default it sits on the top edge, `perchStyle`
+ * overrides the placement (e.g. to a bottom corner).
+ */
+function CardShell({
+  className,
+  perch,
+  perchLeft,
+  perchStyle,
+  children,
+}: {
+  className?: string;
+  perch?: ReactNode;
+  perchLeft?: number | string;
+  perchStyle?: CSSProperties;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className} style={{ position: "relative" }}>
+      <div style={{ ...CARD_STYLE, height: "100%" }}>{children}</div>
+      {perch ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: perchLeft ?? "50%",
+            transform: "translateY(-64%)",
+            zIndex: 3,
+            pointerEvents: "none",
+            ...perchStyle,
+          }}
+        >
+          {perch}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Mascot sitting in a card's bottom-right corner, fully within the card. */
+const CORNER_PERCH: CSSProperties = {
+  top: "auto",
+  bottom: 10,
+  left: "auto",
+  right: 22,
+  transform: "none",
+};
+
+/* ===  SPOTIFY  === */
 function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
   const sp = data?.spotify;
   const offline = !sp || sp.status === "offline";
@@ -89,7 +140,15 @@ function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
   const albumArt = offline ? null : sp.albumArt;
 
   return (
-    <div style={CARD_STYLE} className="lg:col-span-2">
+    <CardShell
+      className="lg:col-span-2"
+      perchStyle={CORNER_PERCH}
+      perch={
+        !active ? (
+          <PresenceMascot variant="sleeping" sleepingFrame={0} size={82} />
+        ) : undefined
+      }
+    >
       <div style={CARD_LABEL_STYLE}>Spotify</div>
 
       <div style={{ display: "flex", gap: 22, alignItems: "center" }}>
@@ -269,7 +328,7 @@ function SpotifyCard({ data }: { data: PresenceSnapshot | null }) {
           </div>
         </div>
       </div>
-    </div>
+    </CardShell>
   );
 }
 
@@ -338,7 +397,14 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
   const avatarUrl = dc?.avatarUrl ?? null;
 
   return (
-    <div style={CARD_STYLE}>
+    <CardShell
+      perchStyle={CORNER_PERCH}
+      perch={
+        !active ? (
+          <PresenceMascot variant="sleeping" sleepingFrame={1} size={82} />
+        ) : undefined
+      }
+    >
       <div style={CARD_LABEL_STYLE}>Discord</div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -414,7 +480,7 @@ function DiscordCard({ data }: { data: PresenceSnapshot | null }) {
       >
         {activity}
       </div>
-    </div>
+    </CardShell>
   );
 }
 
@@ -424,8 +490,6 @@ function ClaudeCard({ data }: { data: PresenceSnapshot | null }) {
   const offline = !cc || cc.status === "offline";
   const active = !offline && cc.status === "active";
 
-  const filter = offline ? "grayscale(1)" : "none";
-  const color = offline ? MUTE : ACCENT;
   const stateLabel = offline ? "No session" : active ? "Active" : "Idle";
   const projectText = offline ? "—" : cc?.detail ?? "session";
   const rawTool = cc?.rawStatus ?? "";
@@ -433,96 +497,21 @@ function ClaudeCard({ data }: { data: PresenceSnapshot | null }) {
     offline || ["active", "idle", "offline"].includes(rawTool) ? "" : rawTool;
 
   return (
-    <div style={CARD_STYLE}>
+    <CardShell>
       <div style={{ ...CARD_LABEL_STYLE, marginBottom: 18 }}>Claude Code</div>
 
       <div
-        style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 76 }}
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          minHeight: 96,
+        }}
       >
-        <div
-          style={{
-            position: "relative",
-            width: 76,
-            height: 52,
-            filter,
-            opacity: offline ? 0.5 : 1,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: 6,
-              bottom: 10,
-              width: 64,
-              height: 3,
-              background: INK,
-              opacity: 0.5,
-              borderRadius: 2,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: 14,
-              bottom: 13,
-              width: 40,
-              height: 24,
-              borderRadius: 3,
-              background: "#efece3",
-              border: `1.5px solid ${INK}`,
-              opacity: 0.7,
-            }}
-          />
-          <div
-            data-pf-anim
-            style={{
-              position: "absolute",
-              left: 20,
-              bottom: 20,
-              width: 5,
-              height: 8,
-              background: INK,
-              opacity: offline ? 0 : 1,
-              animation: "pf-blink 1s step-end infinite",
-              animationPlayState: run(active),
-            }}
-          />
-          <div style={{ position: "absolute", left: 20, bottom: 16, width: 20 }}>
-            <div
-              style={{
-                width: 13,
-                height: 10,
-                borderRadius: 3,
-                background: color,
-                margin: "0 auto",
-              }}
-            />
-            <div
-              style={{
-                width: 20,
-                height: 18,
-                borderRadius: 4,
-                background: color,
-                marginTop: 1,
-              }}
-            />
-            <div
-              data-pf-anim
-              style={{
-                position: "absolute",
-                top: 8,
-                right: -3,
-                width: 12,
-                height: 5,
-                borderRadius: 2,
-                background: color,
-                transformOrigin: "left center",
-                animation: "pf-tap 0.55s ease-in-out infinite",
-                animationPlayState: run(active),
-              }}
-            />
-          </div>
-        </div>
+        {active ? (
+          <PresenceMascot variant="typing" size={96} />
+        ) : (
+          <PresenceMascot variant="sleeping" sleepingFrame={3} size={88} />
+        )}
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -574,7 +563,7 @@ function ClaudeCard({ data }: { data: PresenceSnapshot | null }) {
           ) : null}
         </div>
       </div>
-    </div>
+    </CardShell>
   );
 }
 
@@ -600,57 +589,77 @@ function AfterEffectsCard({ data }: { data: PresenceSnapshot | null }) {
   const dotColor = offline ? GRAY : rendering || editing ? GREEN : AMBER;
 
   return (
-    <div style={CARD_STYLE} className="sm:col-span-2 lg:col-span-4">
+    <CardShell className="sm:col-span-2 lg:col-span-4">
       <div style={{ ...CARD_LABEL_STYLE, marginBottom: 18 }}>After Effects</div>
 
       <div
-        style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 76 }}
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 12,
+          minHeight: active ? 92 : 54,
+        }}
       >
-        <div
-          data-pf-anim
-          style={{
-            width: 20,
-            position: "relative",
-            filter,
-            opacity: offline ? 0.45 : 1,
-            animation: "pf-bob 1.2s ease-in-out infinite",
-            animationPlayState: run(editing && !rendering),
-          }}
-        >
+        {active ? (
           <div
-            style={{
-              width: 13,
-              height: 10,
-              borderRadius: 3,
-              background: color,
-              margin: "0 auto",
-            }}
-          />
-          <div
+            data-pf-anim
             style={{
               width: 20,
-              height: 18,
-              borderRadius: 4,
-              background: color,
-              marginTop: 1,
+              position: "relative",
+              filter,
+              opacity: offline ? 0.45 : 1,
+              animation: "pf-bob 1.2s ease-in-out infinite",
+              animationPlayState: run(editing && !rendering),
             }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: 6,
-              left: 16,
-              width: 11,
-              height: 5,
-              borderRadius: 2,
-              background: color,
-              transform: "rotate(-25deg)",
-            }}
-          />
-        </div>
+          >
+            <div
+              style={{
+                width: 13,
+                height: 10,
+                borderRadius: 3,
+                background: color,
+                margin: "0 auto",
+              }}
+            />
+            <div
+              style={{
+                width: 20,
+                height: 18,
+                borderRadius: 4,
+                background: color,
+                marginTop: 1,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: 6,
+                left: 16,
+                width: 11,
+                height: 5,
+                borderRadius: 2,
+                background: color,
+                transform: "rotate(-25deg)",
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div style={{ marginTop: 14, position: "relative", height: 14 }}>
+        {!active ? (
+          <div
+            style={{
+              position: "absolute",
+              left: "1%",
+              bottom: 6,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            <PresenceMascot variant="sleeping" sleepingFrame={2} size={84} />
+          </div>
+        ) : null}
         <div
           style={{
             position: "absolute",
@@ -736,7 +745,7 @@ function AfterEffectsCard({ data }: { data: PresenceSnapshot | null }) {
           <span style={{ fontSize: 12, color: "#8a8377" }}>{stateLabel}</span>
         </div>
       </div>
-    </div>
+    </CardShell>
   );
 }
 
@@ -763,7 +772,7 @@ export default function Presence() {
           </p>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-x-14 lg:gap-y-12">
           <SpotifyCard data={data} />
           <DiscordCard data={data} />
           <ClaudeCard data={data} />
