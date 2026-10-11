@@ -202,8 +202,14 @@ function build() {
   return { strokes, box: { x0, y0, x1, y1 } };
 }
 
-/** One stroke drawn up to point k (fractional), its edges jittered like a dry brush. */
-function fillStroke(ctx: CanvasRenderingContext2D, s: Stroke, k: number, grow: number) {
+/** What a stroke's outline is traced into: a canvas context, or an SVG path. */
+interface PathSink {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+}
+
+/** One stroke's outline up to point k (fractional), its edges jittered like a dry brush. */
+function traceStroke(out: PathSink, s: Stroke, k: number, grow: number) {
   const full = k >= s.n - 1;
   const end = Math.min(s.n - 1, k);
   const last = Math.floor(end);
@@ -213,30 +219,68 @@ function fillStroke(ctx: CanvasRenderingContext2D, s: Stroke, k: number, grow: n
     const w = (s.w[i] * tip(i) + j) * grow;
     return [s.x[i] + side * s.nx[i] * w, s.y[i] + side * s.ny[i] * w];
   };
-  ctx.beginPath();
-  ctx.moveTo(s.x[0], s.y[0]);
+  out.moveTo(s.x[0], s.y[0]);
   for (let i = 0; i <= last; i++) {
     const [x, y] = edge(i, 1);
-    ctx.lineTo(x, y);
+    out.lineTo(x, y);
   }
   if (!full) {
     // the tip, between the last whole point and the next
     const f = end - last;
-    ctx.lineTo(s.x[last] + (s.x[last + 1] - s.x[last]) * f, s.y[last] + (s.y[last + 1] - s.y[last]) * f);
+    out.lineTo(s.x[last] + (s.x[last + 1] - s.x[last]) * f, s.y[last] + (s.y[last + 1] - s.y[last]) * f);
   }
   for (let i = last; i >= 0; i--) {
     const [x, y] = edge(i, -1);
-    ctx.lineTo(x, y);
+    out.lineTo(x, y);
   }
+}
+
+function fillStroke(ctx: CanvasRenderingContext2D, s: Stroke, k: number, grow: number) {
+  ctx.beginPath();
+  traceStroke(ctx, s, k, grow);
   ctx.closePath();
   ctx.fill();
 }
+
+/** The two passes of ink, bleed first: colour and how far the brush spreads. */
+const LAYERS = [
+  [BLEED, 1.5],
+  [INK, 1],
+] as const;
+
+/**
+ * The whole title as it first stands, as SVG for the server-rendered page, so
+ * it's up before any script runs: the same strokes at the same strength, in
+ * grid units (`box` is the viewBox). The canvas takes over seamlessly.
+ */
+export function titleSvg() {
+  const { strokes, box } = build();
+  const layers = LAYERS.map(([fill, grow]) => ({
+    fill,
+    paths: strokes.map((st) => {
+      let d = "";
+      const at = (x: number, y: number) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+      traceStroke({ moveTo: (x, y) => (d += `M${at(x, y)}`), lineTo: (x, y) => (d += `L${at(x, y)}`) }, st, st.n - 1, grow);
+      return `${d}Z`;
+    }),
+  }));
+  return { box, opacity: OPACITY, layers };
+}
+
+/**
+ * How the title is sized and placed on the stage, which the canvas and the
+ * server-rendered SVG both follow: as wide as a share of the stage (more on a
+ * tall one) but no wider than maxPx or taller than a share of the always-
+ * visible height, centred at centreY down it.
+ */
+export const TITLE_FIT = { tallBelow: 0.8, tallShare: 0.84, wideShare: 0.56, maxPx: 1100, heightShare: 0.3, centreY: 0.46 };
 
 export class IntroTitle {
   private ctx: CanvasRenderingContext2D;
   private title = build();
   private cssW = 0;
   private cssH = 0;
+  private safeH = 0;
   private dpr = 1;
   private shown = -1;
 
@@ -244,9 +288,11 @@ export class IntroTitle {
     this.ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   }
 
-  resize(cssW: number, cssH: number, dpr: number) {
+  /** The canvas is cssW × cssH; the title is centred in its top safeH (see InkRenderer.resize). */
+  resize(cssW: number, cssH: number, dpr: number, safeH = cssH) {
     this.cssW = cssW;
     this.cssH = cssH;
+    this.safeH = Math.min(cssH, safeH || cssH);
     this.dpr = Math.min(2, dpr || 1);
     this.canvas.width = Math.max(1, Math.round(cssW * this.dpr));
     this.canvas.height = Math.max(1, Math.round(cssH * this.dpr));
@@ -265,19 +311,17 @@ export class IntroTitle {
     if (p >= 1) return;
 
     const { strokes, box } = this.title;
-    const tall = this.cssW / this.cssH < 0.8;
+    const F = TITLE_FIT;
+    const tall = this.cssW / this.safeH < F.tallBelow;
     const bw = box.x1 - box.x0;
     const bh = box.y1 - box.y0;
-    const s = Math.min((this.cssW * (tall ? 0.84 : 0.56)) / bw, 1100 / bw, (this.cssH * 0.3) / bh);
+    const s = Math.min((this.cssW * (tall ? F.tallShare : F.wideShare)) / bw, F.maxPx / bw, (this.safeH * F.heightShare) / bh);
     // centred, a touch above the middle so it sits right optically
     const ox = this.cssW / 2 - (box.x0 + bw / 2) * s;
-    const oy = this.cssH * 0.46 - (box.y0 + bh / 2) * s;
+    const oy = this.safeH * F.centreY - (box.y0 + bh / 2) * s;
     ctx.setTransform(s * this.dpr, 0, 0, s * this.dpr, ox * this.dpr, oy * this.dpr);
 
-    for (const [style, grow] of [
-      [BLEED, 1.5],
-      [INK, 1],
-    ] as const) {
+    for (const [style, grow] of LAYERS) {
       ctx.fillStyle = style;
       for (const st of strokes) {
         // q: how much of the stroke is left, 1 (whole) to 0 (gone)

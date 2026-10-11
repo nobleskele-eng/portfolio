@@ -7,7 +7,9 @@ import { INK } from "./LinkIcons";
 /**
  * Plays the site's song on every visit, looping. Browsers block sound until
  * the visitor interacts, so if autoplay is refused the first click, tap or key
- * anywhere starts it. Pausing here sticks for the rest of the visit.
+ * anywhere starts it. Pausing here sticks for the rest of the visit. Nothing
+ * is fetched until it plays, and autoplay isn't tried until the page has
+ * loaded, so the song never competes with the page itself.
  */
 export default function SongPlayer() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -29,10 +31,15 @@ export default function SongPlayer() {
         () => setBlocked(true),
       );
     };
-    start();
+    const onLoad = () => start();
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", onLoad, { once: true });
     const events = ["click", "keydown", "touchend"] as const;
     events.forEach((e) => window.addEventListener(e, start));
-    return () => events.forEach((e) => window.removeEventListener(e, start));
+    return () => {
+      window.removeEventListener("load", onLoad);
+      events.forEach((e) => window.removeEventListener(e, start));
+    };
   }, []);
 
   function toggle() {
@@ -66,7 +73,7 @@ export default function SongPlayer() {
         <span className="block text-[15px] text-[#2f2c27]">{SONG.title}</span>
         <span className="block text-xs text-[#6b665c]">{blocked && !playing ? "tap anywhere for sound" : SONG.artist}</span>
       </span>
-      <audio ref={audioRef} src={SONG.src} loop preload="auto" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+      <audio ref={audioRef} src={SONG.src} loop preload="none" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
     </div>
   );
 }

@@ -1,12 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AeProject } from "@/content/after-effects";
 import { DISCORD_HANDLE, STATUS_LABEL } from "@/content/presence";
 import type { HotspotId, Layout } from "@/lib/shanshui/types";
 import Landscape from "./landscape/Landscape";
-import ScrollPanel from "./landscape/ScrollPanel";
 import SongPlayer from "./landscape/SongPlayer";
+
+// The scroll (and the animation library it unrolls with) is only needed once
+// something is opened, so it loads after the page instead of with it.
+const ScrollPanel = dynamic(() => import("./landscape/ScrollPanel"), { ssr: false });
 import { InkDefs } from "./landscape/LinkIcons";
 import { AboutPanel, LinksPanel, ProjectsPanel, RecordPanel } from "./landscape/panels";
 import { usePresence } from "./landscape/usePresenceStatus";

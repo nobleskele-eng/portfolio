@@ -8,7 +8,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        ink: ['"EB Garamond"', "Georgia", "serif"],
+        ink: ["var(--font-ink)", '"EB Garamond"', "Georgia", "serif"],
       },
     },
   },
