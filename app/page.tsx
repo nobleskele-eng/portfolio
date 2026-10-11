@@ -1,15 +1,10 @@
 import Landing from "@/components/Landing";
-import Presence from "@/components/Presence";
-import Projects from "@/components/Projects";
-import About from "@/components/About";
+import { loadAeProjects } from "@/lib/after-effects";
 
 export default function Home() {
   return (
     <main>
-      <Landing />
-      <Presence />
-      <Projects />
-      <About />
+      <Landing aeProjects={loadAeProjects()} />
     </main>
   );
 }
