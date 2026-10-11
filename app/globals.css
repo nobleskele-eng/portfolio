@@ -25,6 +25,63 @@ body {
   background-color: var(--paper);
 }
 
+/* The stage fills the screen even while a phone's browser bars are slid away
+   (lvh); the scene is laid out in .ink-safe, the part always shown (svh). The
+   track it's pinned in is --zoom svh of scrolling longer than the stage. */
+.ink-stage {
+  height: 100vh;
+  height: 100lvh;
+}
+
+.ink-safe {
+  height: 100vh;
+  height: 100svh;
+}
+
+.ink-track {
+  height: calc(100vh + var(--zoom) * 1vh);
+}
+
+@supports (height: 1svh) {
+  .ink-track {
+    height: calc(100lvh + var(--zoom) * 1svh);
+  }
+}
+
+/* The title as server-rendered SVG, sized like IntroTitle sizes its canvas
+   (the variables come from TITLE_FIT) until the canvas takes over. */
+.ink-title-sketch {
+  position: absolute;
+  left: 50%;
+  top: var(--centre);
+  width: min(var(--wide), var(--max), calc(var(--high) * 1vh * var(--aspect)));
+  aspect-ratio: var(--aspect);
+  transform: translate(-50%, -50%);
+}
+
+@media (max-aspect-ratio: 4/5) {
+  .ink-title-sketch {
+    width: min(var(--tall), var(--max), calc(var(--high) * 1vh * var(--aspect)));
+  }
+}
+
+@supports (height: 1svh) {
+  .ink-title-sketch {
+    width: min(var(--wide), var(--max), calc(var(--high) * 1svh * var(--aspect)));
+  }
+  @media (max-aspect-ratio: 4/5) {
+    .ink-title-sketch {
+      width: min(var(--tall), var(--max), calc(var(--high) * 1svh * var(--aspect)));
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-title-sketch {
+    display: none;
+  }
+}
+
 /* Scroll panel paper: the same tile, with a thin inset mounting line. */
 .ink-paper {
   background-color: #f3e9d3;

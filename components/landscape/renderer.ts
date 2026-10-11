@@ -410,6 +410,9 @@ export class InkRenderer {
   private dpr = 1;
   private cssW = 0;
   private cssH = 0;
+  private safeH = 0;
+  /** the camera is gliding: composite with cheaper filtering until it settles */
+  private moving = false;
   /** camera at the top of the scroll, and fully zoomed into the vignette */
   private base: View = { s: 1, ox: 0, oy: 0 };
   private end: View = { s: 1, ox: 0, oy: 0 };
@@ -481,10 +484,17 @@ export class InkRenderer {
     return this.started ? this.clock : 0;
   }
 
-  resize(cssW: number, cssH: number, dpr: number) {
-    if (cssW === this.cssW && cssH === this.cssH && Math.min(2, dpr || 1) === this.dpr) return;
+  /**
+   * The canvas is cssW × cssH; the scene is fitted into its top safeH, the
+   * part a phone always shows. Below that is only seen while the browser's
+   * bars are slid away, so the layout doesn't shift when they come and go.
+   */
+  resize(cssW: number, cssH: number, dpr: number, safeH = cssH) {
+    safeH = Math.min(cssH, safeH || cssH);
+    if (cssW === this.cssW && cssH === this.cssH && safeH === this.safeH && Math.min(2, dpr || 1) === this.dpr) return;
     this.cssW = cssW;
     this.cssH = cssH;
+    this.safeH = safeH;
     this.dpr = Math.min(2, dpr || 1);
     this.canvas.width = Math.max(1, Math.round(cssW * this.dpr));
     this.canvas.height = Math.max(1, Math.round(cssH * this.dpr));
@@ -507,15 +517,17 @@ export class InkRenderer {
   private layout() {
     const w = this.world;
     if (!w || !this.cssW) return;
-    // top of the scroll: contain-fit, anchored bottom-left; sky above minH may crop
-    const s0 = Math.min(this.cssW / w.w, this.cssH / w.minH);
-    this.base = { s: s0, ox: 0, oy: this.cssH - w.h * s0 };
+    const h = this.safeH;
+    // top of the scroll: contain-fit, anchored bottom-left; sky above minH may
+    // crop, and a screen wider than the scene shows more of it to the right
+    const s0 = Math.min(this.cssW / w.w, h / w.minH);
+    this.base = { s: s0, ox: 0, oy: h - w.h * s0 };
     // bottom of the scroll: the vignette fills the screen, still covering the
     // bottom-left edges so no bare paper shows there
     const f = w.focus;
-    const s1 = Math.max(s0, Math.min(this.cssW / (f.x1 - f.x0), this.cssH / (f.y1 - f.y0)) * 0.94);
+    const s1 = Math.max(s0, Math.min(this.cssW / (f.x1 - f.x0), h / (f.y1 - f.y0)) * 0.94);
     const ox = Math.min(0, this.cssW / 2 - ((f.x0 + f.x1) / 2) * s1);
-    const oy = Math.max(this.cssH - w.h * s1, this.cssH / 2 - ((f.y0 + f.y1) / 2) * s1);
+    const oy = Math.max(h - w.h * s1, h / 2 - ((f.y0 + f.y1) / 2) * s1);
     this.end = { s: s1, ox, oy };
 
     // each plane is drawn dense enough to stay crisp at full zoom, within budget
@@ -753,10 +765,15 @@ export class InkRenderer {
 
   /* ------------------------------------------------------------- camera */
 
-  /** Scroll progress (0 = whole scene, 1 = the vignette) and mouse (−1..1). */
-  setView(zoom: number, mx: number, my: number, now: number) {
+  /**
+   * Scroll progress (0 = whole scene, 1 = the vignette) and mouse (−1..1).
+   * While `moving`, frames are composited with cheaper filtering; the frame
+   * that settles is drawn at full quality.
+   */
+  setView(zoom: number, mx: number, my: number, now: number, moving = false) {
     this.zoom = Math.max(0, Math.min(1, zoom));
     this.mouse = { x: mx, y: my };
+    this.moving = moving;
     if (this.introDone) this.render(now);
   }
 
@@ -1060,7 +1077,7 @@ export class InkRenderer {
     const ctx = this.ctx;
     this.clear(ctx);
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingQuality = this.moving ? "medium" : "high";
     ctx.globalAlpha = 1;
     const cam = this.camera();
 
