@@ -6,7 +6,11 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        ink: ['"EB Garamond"', "Georgia", "serif"],
+      },
+    },
   },
   plugins: [],
 };

@@ -1,0 +1,340 @@
+{
+  "file": "wspbae.aep",
+  "exportedAt": "Sunday, 11 Oct 2026 00:45:03 GMT",
+  "aeVersion": "25.6.6x4",
+  "bitsPerChannel": 8,
+  "counts": {
+    "comps": 15,
+    "footage": 39,
+    "solids": 18,
+    "folders": 10,
+    "layers": 65,
+    "keyframes": 66,
+    "expressions": 30,
+    "effects": 35,
+    "text": 2,
+    "shape": 1,
+    "precomp": 10,
+    "adjustment": 8,
+    "null": 3,
+    "camera": 0,
+    "light": 0,
+    "missingFootage": 1,
+    "missingEffects": 8
+  },
+  "main": {
+    "comp": "Pre-comp 6",
+    "reason": "render queue",
+    "width": 736,
+    "height": 736,
+    "fps": 60.002,
+    "duration": 1.133,
+    "totalLayers": 4,
+    "layers": [
+      {
+        "name": "Shape Layer 1",
+        "kind": "shape",
+        "in": 0,
+        "out": 1.133,
+        "enabled": true,
+        "keyframes": 0,
+        "expressions": 0,
+        "effects": []
+      },
+      {
+        "name": "eye brow",
+        "kind": "image",
+        "in": 0,
+        "out": 1.133,
+        "enabled": true,
+        "keyframes": 33,
+        "expressions": 0,
+        "effects": ["Puppet"]
+      },
+      {
+        "name": "eye",
+        "kind": "image",
+        "in": 0,
+        "out": 1.133,
+        "enabled": true,
+        "keyframes": 9,
+        "expressions": 0,
+        "effects": []
+      },
+      {
+        "name": "download (2).jpg",
+        "kind": "image",
+        "in": 0,
+        "out": 1.133,
+        "enabled": true,
+        "keyframes": 0,
+        "expressions": 0,
+        "effects": ["Paint"]
+      }
+    ]
+  },
+  "effects": [
+    {
+      "name": "Slider Control",
+      "matchName": "ADBE Slider Control",
+      "category": "Expression Controls",
+      "count": 11
+    },
+    {
+      "name": "S_WarpFishEye",
+      "matchName": "S_WarpFishEye",
+      "category": "Sapphire Distort",
+      "count": 3
+    },
+    {
+      "name": "Mesh Warp",
+      "matchName": "ADBE MESH WARP",
+      "category": "Distort",
+      "count": 3
+    },
+    {
+      "name": "Drop Shadow",
+      "matchName": "ADBE Drop Shadow",
+      "category": "Perspective",
+      "count": 3
+    },
+    {
+      "name": "CC Light Burst 2.5",
+      "matchName": "CC Light Burst 2.5",
+      "category": "Generate",
+      "count": 2
+    },
+    {
+      "name": "",
+      "matchName": "Pseudo/textevo",
+      "category": "",
+      "count": 2
+    },
+    {
+      "name": "S_Shake",
+      "matchName": "S_Shake",
+      "category": "Sapphire Distort",
+      "count": 2
+    },
+    {
+      "name": "Angle Control",
+      "matchName": "ADBE Angle Control",
+      "category": "Expression Controls",
+      "count": 1
+    },
+    {
+      "name": "Fill",
+      "matchName": "ADBE Fill",
+      "category": "Generate",
+      "count": 1
+    },
+    {
+      "name": "BCC Directional Blur",
+      "matchName": "BCC3Directional Blur",
+      "category": "BCC Blur",
+      "count": 1
+    },
+    {
+      "name": "S_WarpBubble",
+      "matchName": "S_WarpBubble",
+      "category": "Sapphire Distort",
+      "count": 1
+    },
+    {
+      "name": "Bokeh",
+      "matchName": "CROSSPHERE_Bokeh",
+      "category": "CROSSPHERE",
+      "count": 1
+    },
+    {
+      "name": "Motion Tile",
+      "matchName": "ADBE Tile",
+      "category": "Stylize",
+      "count": 1
+    },
+    {
+      "name": "Puppet",
+      "matchName": "ADBE FreePin3",
+      "category": "_Obsolete",
+      "count": 1
+    },
+    {
+      "name": "Paint",
+      "matchName": "ADBE Paint",
+      "category": "_Obsolete",
+      "count": 1
+    },
+    {
+      "name": "Magic Bullet Looks",
+      "matchName": "MB LookSuite3",
+      "category": "RG Color",
+      "count": 1
+    }
+  ],
+  "fonts": [
+    {
+      "family": "Bungee",
+      "style": "Regular",
+      "count": 2
+    }
+  ],
+  "footageTypes": [
+    {
+      "type": "psd",
+      "count": 22
+    },
+    {
+      "type": "png",
+      "count": 13
+    },
+    {
+      "type": "mp4",
+      "count": 2
+    },
+    {
+      "type": "jpg",
+      "count": 1
+    },
+    {
+      "type": "mp3",
+      "count": 1
+    }
+  ],
+  "comps": [
+    {
+      "name": "Comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 18.667,
+      "layers": 11,
+      "usedIn": 0
+    },
+    {
+      "name": "eye_blink_layers",
+      "width": 736,
+      "height": 736,
+      "fps": 60.002,
+      "duration": 10,
+      "layers": 16,
+      "usedIn": 0
+    },
+    {
+      "name": "eye_blink_layers_2",
+      "width": 736,
+      "height": 736,
+      "fps": 60.002,
+      "duration": 10,
+      "layers": 10,
+      "usedIn": 1
+    },
+    {
+      "name": "frame[1-1].png Comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 30,
+      "duration": 1.667,
+      "layers": 3,
+      "usedIn": 1
+    },
+    {
+      "name": "frame[1-7].png Comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 30,
+      "duration": 0.467,
+      "layers": 1,
+      "usedIn": 1
+    },
+    {
+      "name": "frame[1-7].png Comp 2",
+      "width": 1440,
+      "height": 1080,
+      "fps": 30,
+      "duration": 0.467,
+      "layers": 1,
+      "usedIn": 0
+    },
+    {
+      "name": "GLOBAL_HR_controller",
+      "width": 500,
+      "height": 500,
+      "fps": 60.002,
+      "duration": 15,
+      "layers": 1,
+      "usedIn": 0
+    },
+    {
+      "name": "Jujutsu Kaisen - S2E13 (48).mp4 Comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 23.976,
+      "duration": 0.459,
+      "layers": 1,
+      "usedIn": 0
+    },
+    {
+      "name": "Mob Psycho 100 - E12 (20).mp4 Comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 23.976,
+      "duration": 0.083,
+      "layers": 1,
+      "usedIn": 0
+    },
+    {
+      "name": "Pre-comp 1",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 1.667,
+      "layers": 1,
+      "usedIn": 1
+    },
+    {
+      "name": "Pre-comp 2",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 1.667,
+      "layers": 2,
+      "usedIn": 1
+    },
+    {
+      "name": "Pre-comp 3",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 1.667,
+      "layers": 6,
+      "usedIn": 1
+    },
+    {
+      "name": "Pre-comp 4",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 1.133,
+      "layers": 1,
+      "usedIn": 0
+    },
+    {
+      "name": "Pre-comp 5",
+      "width": 1440,
+      "height": 1080,
+      "fps": 15,
+      "duration": 1.133,
+      "layers": 6,
+      "usedIn": 1
+    },
+    {
+      "name": "Pre-comp 6",
+      "width": 736,
+      "height": 736,
+      "fps": 60.002,
+      "duration": 1.133,
+      "layers": 4,
+      "usedIn": 1
+    }
+  ]
+}

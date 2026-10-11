@@ -43,3 +43,6 @@ next-env.d.ts
 .vercel
 .env*
 !.env.example
+
+# local scratch holding a secret token
+/claude string thing.txt
