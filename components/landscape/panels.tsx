@@ -1,13 +1,17 @@
+import { useRef } from "react";
 import { ABOUT } from "@/content/about";
-import { AE_TITLE, type AeProject } from "@/content/after-effects";
+import type { AeProject } from "@/content/after-effects";
 import { LINKS, LINKS_TITLE } from "@/content/links";
 import { NOTHING_PLAYING, NOW_PLAYING_TITLE, SPOTIFY_PROFILE } from "@/content/presence";
-import { PROJECTS, PROJECTS_TITLE } from "@/content/projects";
+import type { ShelfId } from "@/content/projects";
 import type { SpotifyPresence } from "@/lib/presence/types";
-import AeProjectCard from "./AeProjectCard";
+import Album from "./Album";
+import Bookshelf from "./Bookshelf";
+import { HEADING } from "./heading";
 import { LINK_ICONS } from "./LinkIcons";
 
-const HEADING = "font-ink mb-6 pr-10 text-3xl font-medium tracking-wide text-[#2f2c27]";
+/** A volume open on the bookshelf, at a page. */
+export type OpenBook = { shelf: ShelfId; index: number };
 
 export function AboutPanel({ titleId }: { titleId: string }) {
   return (
@@ -55,44 +59,35 @@ export function LinksPanel({ titleId }: { titleId: string }) {
   );
 }
 
-export function ProjectsPanel({ titleId, aeProjects }: { titleId: string; aeProjects: AeProject[] }) {
-  return (
-    <>
-      <h2 id={titleId} className={HEADING}>
-        {PROJECTS_TITLE}
-      </h2>
-      <ul className="font-ink divide-y divide-[#c9b896]/70">
-        {PROJECTS.map((p, i) => (
-          <li key={i} className="py-4 first:pt-0 last:pb-0">
-            <h3 className="text-xl font-medium text-[#2f2c27]">
-              {p.href ? (
-                <a href={p.href} target="_blank" rel="noreferrer" className="ink-focus underline decoration-[#b23a2c]/50 underline-offset-4 hover:decoration-[#b23a2c]">
-                  {p.title}
-                </a>
-              ) : (
-                p.title
-              )}
-            </h3>
-            <p className="mt-1 text-lg leading-relaxed text-[#4a463f]">{p.description}</p>
-            {p.tags && (
-              <p className="mt-2 text-sm uppercase tracking-[0.18em] text-[#8a8478]">{p.tags.join(" · ")}</p>
-            )}
-          </li>
-        ))}
-      </ul>
-      {aeProjects.length > 0 && (
-        <section className="mt-8">
-          <h3 className="font-ink border-b border-[#c9b896]/70 pb-2 text-sm uppercase tracking-[0.22em] text-[#8a8478]">{AE_TITLE}</h3>
-          <ul className="divide-y divide-[#c9b896]/70">
-            {aeProjects.map((p) => (
-              <li key={p.slug} className="py-5 last:pb-0">
-                <AeProjectCard title={p.title} info={p.info} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
+/** The bookshelf: the four volumes, or one of them open as an album. */
+export function ProjectsPanel({
+  titleId,
+  aeProjects,
+  book,
+  vertical,
+  onBook,
+}: {
+  titleId: string;
+  aeProjects: AeProject[];
+  book: OpenBook | null;
+  vertical: boolean;
+  onBook: (book: OpenBook | null) => void;
+}) {
+  // which volume was last open, so its spine gets focus back
+  const last = useRef<ShelfId | null>(null);
+  if (book) last.current = book.shelf;
+  return book ? (
+    <Album
+      titleId={titleId}
+      shelf={book.shelf}
+      index={book.index}
+      vertical={vertical}
+      aeProjects={aeProjects}
+      onIndex={(index) => onBook({ ...book, index })}
+      onBack={() => onBook(null)}
+    />
+  ) : (
+    <Bookshelf titleId={titleId} focusShelf={last.current} onPick={(shelf) => onBook({ shelf, index: 0 })} />
   );
 }
 

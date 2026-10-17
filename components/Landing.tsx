@@ -12,7 +12,7 @@ import SongPlayer from "./landscape/SongPlayer";
 // something is opened, so it loads after the page instead of with it.
 const ScrollPanel = dynamic(() => import("./landscape/ScrollPanel"), { ssr: false });
 import { InkDefs } from "./landscape/LinkIcons";
-import { AboutPanel, LinksPanel, ProjectsPanel, RecordPanel } from "./landscape/panels";
+import { AboutPanel, LinksPanel, ProjectsPanel, RecordPanel, type OpenBook } from "./landscape/panels";
 import { usePresence } from "./landscape/usePresenceStatus";
 
 const TITLE_ID = "scroll-title";
@@ -26,6 +26,8 @@ export default function Landing({ aeProjects }: { aeProjects: AeProject[] }) {
   const { pose, discord, spotify, refresh } = usePresence();
   const [open, setOpen] = useState<HotspotId | null>(null);
   const [layout, setLayout] = useState<Layout>("wide");
+  // the bookshelf's open volume and page; null is the shelf of spines
+  const [book, setBook] = useState<OpenBook | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   // keep the last panel's content while the scroll rolls back up
   const lastRef = useRef<HotspotId | null>(null);
@@ -43,7 +45,7 @@ export default function Landing({ aeProjects }: { aeProjects: AeProject[] }) {
   const labels: Record<HotspotId, string> = {
     person: `About me (${status})`,
     board: "Links",
-    shelf: "Current projects",
+    shelf: "Projects",
     record: playing && spotify?.track ? `Now playing on Spotify: ${spotify.track}` : "Spotify",
   };
 
@@ -62,6 +64,7 @@ export default function Landing({ aeProjects }: { aeProjects: AeProject[] }) {
     (id: HotspotId, trigger: HTMLButtonElement) => {
       triggerRef.current = trigger;
       if (id === "record") refresh();
+      if (id === "shelf") setBook(null);
       setOpen(id);
     },
     [refresh],
@@ -91,13 +94,15 @@ export default function Landing({ aeProjects }: { aeProjects: AeProject[] }) {
       <ScrollPanel
         open={open !== null}
         vertical={layout === "tall"}
-        wide={shown === "shelf"}
+        size={shown === "shelf" ? (book ? "album" : "wide") : "base"}
         labelledBy={TITLE_ID}
         onClose={onClose}
       >
         {shown === "person" && <AboutPanel titleId={TITLE_ID} />}
         {shown === "board" && <LinksPanel titleId={TITLE_ID} />}
-        {shown === "shelf" && <ProjectsPanel titleId={TITLE_ID} aeProjects={aeProjects} />}
+        {shown === "shelf" && (
+          <ProjectsPanel titleId={TITLE_ID} aeProjects={aeProjects} book={book} vertical={layout === "tall"} onBook={setBook} />
+        )}
         {shown === "record" && <RecordPanel titleId={TITLE_ID} spotify={spotify} />}
       </ScrollPanel>
     </section>

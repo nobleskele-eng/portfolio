@@ -1,0 +1,17 @@
+{
+  "name": "videos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Brings the bookshelf's videos in from Google Drive and puts them on Cloudflare R2",
+  "type": "module",
+  "scripts": {
+    "ingest": "node ingest.mjs"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/lib-storage": "^3.1152.0"
+  }
+}

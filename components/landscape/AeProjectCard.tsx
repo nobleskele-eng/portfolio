@@ -1,14 +1,10 @@
 import type { AeLayer, AeProjectInfo } from "@/content/after-effects";
+import { clock } from "@/lib/clock";
 import { INK } from "./LinkIcons";
 
 // The timeline shows at most this many layers (the top of the stack).
 const ROWS = 18;
 const TOP_EFFECTS = 8;
-
-function clock(seconds: number) {
-  const s = Math.round(seconds);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
 
 const num = (n: number) => n.toLocaleString("en-US");
 

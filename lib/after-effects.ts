@@ -1,10 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AE_TITLES, type AeProject, type AeProjectInfo } from "@/content/after-effects";
+import type { AeProject, AeProjectInfo } from "@/content/after-effects";
+import { WORKS } from "@/content/projects";
 
 const DIR = join(process.cwd(), "content", "after-effects");
 
-/** Every exported project in content/after-effects/, listed ones first in AE_TITLES order. */
+/** The exports in content/after-effects/ that a work on the bookshelf points at. */
 export function loadAeProjects(): AeProject[] {
   let files: string[] = [];
   try {
@@ -12,13 +13,12 @@ export function loadAeProjects(): AeProject[] {
   } catch {
     return [];
   }
-  const order = Object.keys(AE_TITLES);
-  const rank = (slug: string) => (order.includes(slug) ? order.indexOf(slug) : order.length);
+  const used = new Set(WORKS.map((w) => w.ae));
   return files
-    .map((f) => {
-      const slug = f.replace(/\.json$/, "");
-      const info = JSON.parse(readFileSync(join(DIR, f), "utf8")) as AeProjectInfo;
-      return { slug, title: AE_TITLES[slug] ?? slug, info };
-    })
-    .sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
+    .map((f) => f.replace(/\.json$/, ""))
+    .filter((slug) => used.has(slug))
+    .map((slug) => ({
+      slug,
+      info: JSON.parse(readFileSync(join(DIR, `${slug}.json`), "utf8")) as AeProjectInfo,
+    }));
 }

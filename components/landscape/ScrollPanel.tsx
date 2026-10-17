@@ -44,10 +44,18 @@ function Roller({ along }: { along: "x" | "y" }) {
   );
 }
 
+// Handscroll lengths: a longer one for panels with more to show, the longest
+// for the bookshelf's album spreads.
+const WIDTH = {
+  base: "w-[min(640px,calc(100vw-96px))]",
+  wide: "w-[min(780px,calc(100vw-96px))]",
+  album: "w-[min(1100px,calc(100vw-96px))]",
+};
+
 export default function ScrollPanel({
   open,
   vertical,
-  wide = false,
+  size = "base",
   labelledBy,
   onClose,
   children,
@@ -55,8 +63,7 @@ export default function ScrollPanel({
   open: boolean;
   /** hanging scroll (phones) instead of a handscroll */
   vertical: boolean;
-  /** a longer handscroll, for panels with more to show */
-  wide?: boolean;
+  size?: keyof typeof WIDTH;
   labelledBy: string;
   onClose: () => void;
   children: ReactNode;
@@ -79,7 +86,7 @@ export default function ScrollPanel({
     }
     if (e.key !== "Tab" || !dialogRef.current) return;
     const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
     if (!focusables.length) return;
     const first = focusables[0];
@@ -138,7 +145,7 @@ export default function ScrollPanel({
                 className={
                   vertical
                     ? "ink-paper relative w-[min(84vw,420px)] max-h-[72svh] overflow-y-auto px-6 py-7"
-                    : `ink-paper relative ${wide ? "w-[min(780px,calc(100vw-96px))]" : "w-[min(640px,calc(100vw-96px))]"} max-h-[78svh] overflow-y-auto px-10 py-9`
+                    : `ink-paper relative ${WIDTH[size]} max-h-[78svh] overflow-y-auto px-10 py-9 motion-safe:transition-[width] motion-safe:duration-500`
                 }
               >
                 <button

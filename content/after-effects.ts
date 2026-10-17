@@ -1,17 +1,10 @@
-// After Effects projects on the bookshelf. Run
-// scripts/after-effects/export-project-info.jsx in After Effects and save its
-// JSON into content/after-effects/; every file there shows up as a card. Re-run
-// it after editing a project to refresh the numbers.
+// After Effects exports shown under works on the bookshelf. Run
+// scripts/after-effects/export-project-info.jsx in After Effects, save its
+// JSON into content/after-effects/, and set a work's `ae` in
+// content/projects.ts to the file name (without .json). Re-run it after
+// editing a project to refresh the numbers.
 
-export const AE_TITLE = "After Effects";
-
-// Card titles by JSON file name (without .json), in display order. Files not
-// listed here still show, titled by their file name.
-export const AE_TITLES: Record<string, string> = {
-  wspbae: "wspbae",
-  iwontsaygoodbye: "i wont say goodbye",
-  moneyallaroundme: "money all around me",
-};
+export const AE_TITLE = "How it's built";
 
 export interface AeLayer {
   name: string;
@@ -49,6 +42,5 @@ export interface AeProjectInfo {
 
 export interface AeProject {
   slug: string;
-  title: string;
   info: AeProjectInfo;
 }
