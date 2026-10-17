@@ -46,6 +46,8 @@ export interface AgentPresence extends BasePresence {
   source: AgentSource;
   /** The free-form status string the agent last posted, or null when offline. */
   rawStatus: string | null;
+  /** The folder the agent is working in (its basename), or null when unknown. */
+  project: string | null;
 }
 
 export interface PresenceSnapshot {

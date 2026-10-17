@@ -4,7 +4,7 @@ import type { AgentSource } from "@/lib/presence/types";
 
 // How long a written key is kept in Redis before it self-expires. This is only a
 // garbage-collection safety net — the authoritative "is this source offline?"
-// decision lives in app/api/presence/route.ts (STALE_THRESHOLD_MS), keyed off the
+// decision lives in lib/presence/fresh.ts, keyed off the
 // stored `lastSeen`. Kept generous so a paused agent's last status is still
 // readable for debugging.
 const GC_TTL_SECONDS = 86_400;

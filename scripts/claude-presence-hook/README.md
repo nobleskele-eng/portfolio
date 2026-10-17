@@ -4,7 +4,9 @@ Client side of [`/api/presence/update`](../../app/api/presence/update/route.ts).
 
 `hook.mjs` is a standalone [Claude Code hook](https://docs.claude.com/en/docs/claude-code/hooks).
 On each lifecycle event it POSTs a small, non-sensitive status object to this
-site's presence endpoint so the `claudeCode` card reflects live activity.
+site's presence endpoint so the stone lantern in the landscape (read through
+[`/api/presence/claude`](../../app/api/presence/claude/route.ts)) reflects live
+activity.
 
 It is **additive** — it runs alongside
 [claude-code-discord-status](https://github.com/brunoJurkovic/claude-code-discord-status)
@@ -30,10 +32,11 @@ Content-Type: application/json
 | `PreToolUse`       | `active` | per-tool label      | adds `tool`               |
 | `Stop`             | `idle`   | `Finished`          |                           |
 | `Notification`     | `idle`   | `Waiting for input` |                           |
-| `SessionEnd`       | `idle`   | `Session ended`     | `ended: true`; pushed so the source flips off immediately instead of waiting for `STALE_THRESHOLD_MS` |
+| `SessionEnd`       | `idle`   | `Session ended`     | `ended: true`; pushed so the source flips off immediately instead of waiting for the staleness window (`lib/presence/fresh.ts`) |
 
 Only the working-directory basename, tool name, and event name leave the
-machine — no paths, prompt text, env, or session id.
+machine — no paths, prompt text, env, or session id. The basename is shown
+publicly in the lantern's scroll ("in <project>").
 
 Always exits 0, never writes stdout, silently no-ops if either env var is unset.
 Node 18+ (global `fetch`); fetch is capped at 2s.

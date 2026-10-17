@@ -19,7 +19,8 @@
  * (parallax), and the mouse nudges the planes apart a little. The lake is baked
  * into one bitmap per water drawing (a rippling reflection, its ripple strokes
  * and the boats) and cycled at 3fps; the clouds drift; the objects, record
- * player and person are drawn as vectors on top, so they stay crisp at any zoom.
+ * player, lantern and person are drawn as vectors on top, so they stay crisp at
+ * any zoom.
  */
 import {
   PLANES,
@@ -27,6 +28,8 @@ import {
   type FogOp,
   type GroupPart,
   type HotspotId,
+  type Lamp,
+  type LanternPart,
   type ObjectPart,
   type Op,
   type PersonPart,
@@ -37,6 +40,7 @@ import {
   type StrokeOp,
   type WorldInfo,
 } from "@/lib/shanshui/types";
+import { moonPath, type Sky, type SkyPoint } from "@/lib/sky";
 
 // The scene's timeline (the windows in scenes.js, and every duration below)
 // plays this many times faster than written.
@@ -78,6 +82,10 @@ const MAX_FRAME_S = 0.1;
 const WATER_STEP_MS = 1000 / 3;
 // Record spin frames.
 const SPIN_STEP_MS = 140;
+// The lantern's flicker: a step this long, through its frames in this
+// (uneven) order so it doesn't read as a loop.
+const FLICKER_STEP_MS = 170;
+const FLICKER = [0, 1, 0, 2, 3, 1, 2, 0, 3, 2, 1];
 // How far the clouds drift per step, in world units.
 const CLOUD_DRIFT = 2.4;
 
@@ -96,6 +104,23 @@ const PIXEL_BUDGET = 26e6;
 const REFLECT_ALPHA = 0.3;
 const REFLECT_FADE = 0.34;
 const REFLECT_WOBBLE: [number, number] = [0.5, 5];
+// The sky (sun, moon, dusk and night) settles over the painting this long
+// after it's done.
+const SKY_FADE_MS = 2600;
+// Night and twilight are soft washes, worked out at this share of the screen's
+// resolution and stretched over it.
+const WASH_SCALE = 0.25;
+// Night: indigo, deepest overhead. Dusk and dawn: a warm glow from the sun's
+// side of the horizon. The lantern's pool of light.
+const NIGHT = "30,45,100";
+const NIGHT_ALPHA = [0.66, 0.54, 0.6]; // overhead, at the horizon, at the bottom
+const DUSK = "232,140,96";
+const DUSK_ALPHA = 0.42;
+const LAMPLIGHT = "240,168,104";
+// The sun: seal red, deeper near the horizon. The moon's unlit side, at night.
+const SUN_HIGH = [206, 98, 66];
+const SUN_LOW = [186, 58, 40];
+const MOON_SHADOW = "30,45,100";
 // Without GPU canvas, compositing big bitmaps gets slow: after this many
 // composites over the time limit, drop to lighter bitmaps.
 const SLOW_FRAME_MS = 32;
@@ -277,6 +302,37 @@ function drawFog(ctx: CanvasRenderingContext2D, op: FogOp, alpha: number) {
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
+const ease01 = (t: number) => smooth(Math.max(0, Math.min(1, t)));
+const mix = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+
+/** How much of the sun shows: it sinks into the haze through the horizon. */
+const sunShows = (sun: SkyPoint) => ease01((sun.alt + 3) / 5);
+/** How much of the moon shows: up, and not new; faint by day. */
+const moonShows = (sky: Sky) =>
+  ease01((sky.moon.alt + 2) / 5) * ease01((sky.moon.lit - 0.02) / 0.08) * (0.45 + 0.55 * sky.dark);
+
+/**
+ * A reflection's path on the lake under (x, top): short horizontal strokes,
+ * widening and thinning out towards the viewer, shifting with the water.
+ */
+function glade(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  top: number,
+  depth: number,
+  width: number,
+  step: number,
+  draw: (x0: number, y: number, w: number, h: number, t: number) => void,
+) {
+  const rows = 14;
+  for (let i = 0; i < rows; i++) {
+    const t = i / (rows - 1);
+    const y = top + depth * Math.pow(t, 1.5);
+    const half = width * (0.35 + 1.1 * t) * (0.55 + 0.9 * hash(i * 3.1 + step * 17.3));
+    const dx = (hash(i * 7.7 + step * 5.9) - 0.5) * width * t;
+    draw(x + dx - half, y, half * 2, Math.max(1, depth * 0.012 * (1 + t)), t);
+  }
+}
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /**
@@ -401,6 +457,13 @@ export function recordKey(playing: boolean, ms: number, frames: number, still: b
   return `spin${still ? 0 : Math.floor(ms / SPIN_STEP_MS) % frames}`;
 }
 
+/** The lantern's frame: flickering only while lit. */
+export function lanternKey(lamp: Lamp, ms: number, frames: number, still: boolean): string {
+  if (lamp !== "lit") return lamp;
+  if (still) return "lit0";
+  return `lit${FLICKER[Math.floor(ms / FLICKER_STEP_MS) % FLICKER.length] % frames}`;
+}
+
 export class InkRenderer {
   private ctx: CanvasRenderingContext2D;
   private commit = makeCanvas();
@@ -434,6 +497,7 @@ export class InkRenderer {
   private items: Item[] = [];
   private objects = new Map<string, { items: Item[]; bbox: BBox }>();
   private record: { frames: Record<string, Item[]>; count: number; bbox: BBox } | null = null;
+  private lantern: { frames: Record<string, Item[]>; count: number; bbox: BBox } | null = null;
   private person: PersonPart | null = null;
   private personItems: Record<string, Item[]> = {};
   /** first op not yet committed; some after it may already be */
@@ -451,6 +515,15 @@ export class InkRenderer {
 
   pose: Pose = "sit";
   playing = false;
+  lamp: Lamp = "off";
+  private sky: Sky | null = null;
+  /** when the sky began settling over the finished painting */
+  private skyFrom = -1;
+  private wash = makeCanvas();
+  private washCtx = context(this.wash);
+  /** the near layers, drawn apart while a wash is laid (see buildWash) */
+  private front = makeCanvas();
+  private frontCtx = context(this.front);
   private shownKey = "";
   private reinkAt = -1;
   private hover: HotspotId | null = null;
@@ -614,6 +687,23 @@ export class InkRenderer {
     const count = Object.keys(frames).filter((k) => k.startsWith("spin")).length;
     this.record = { frames, count, bbox: bbox as BBox };
     const intro = frames.stop;
+    const shift = Math.max(0, this.clock - part.t0);
+    schedule(intro, part.t0 + shift, part.t1 + shift);
+    this.items.push(...intro);
+    if (this.introDone || this.skipped) this.finish();
+  }
+
+  /**
+   * The lantern paints in dark; if Claude is working (or idle), it lights
+   * once the painting is done. Its hotspot is the stone alone, not the glow.
+   */
+  setLantern(part: LanternPart, now: number) {
+    if (!this.started) this.start(now);
+    const frames: Record<string, Item[]> = {};
+    for (const key of Object.keys(part.frames)) frames[key] = part.frames[key].map((op) => prepare(op, null));
+    const count = Object.keys(frames).filter((k) => k.startsWith("lit")).length;
+    this.lantern = { frames, count, bbox: boxOf(part.frames.off) };
+    const intro = frames.off;
     const shift = Math.max(0, this.clock - part.t0);
     schedule(intro, part.t0 + shift, part.t1 + shift);
     this.items.push(...intro);
@@ -843,6 +933,7 @@ export class InkRenderer {
     if (person) toCss("person", person, this.personBox(false) as BBox);
     if (board) toCss("board", board.bbox);
     if (shelf) toCss("shelf", shelf.bbox);
+    if (this.lantern) toCss("claude", this.lantern.bbox);
     // last, so the small record player wins where its padding overlaps the chair
     if (this.record) toCss("record", this.record.bbox);
     return out;
@@ -890,6 +981,19 @@ export class InkRenderer {
   setPlaying(playing: boolean, now: number) {
     if (playing === this.playing) return;
     this.playing = playing;
+    if (this.introDone) this.render(now);
+  }
+
+  /** Claude Code's state; the lantern burns, smoulders or goes dark. */
+  setLamp(lamp: Lamp, now: number) {
+    if (lamp === this.lamp) return;
+    this.lamp = lamp;
+    if (this.introDone) this.render(now);
+  }
+
+  /** The sky over Toronto: where the sun and moon are, and how dark it is. */
+  setSky(sky: Sky, now: number) {
+    this.sky = sky;
     if (this.introDone) this.render(now);
   }
 
@@ -1053,46 +1157,319 @@ export class InkRenderer {
   /** Composite key of everything that animates on its own clock. */
   private idleKey(now: number) {
     const record = this.record ? recordKey(this.playing, now, this.record.count, this.still) : "";
-    return `${this.pose}:${frameKey(this.pose, now, this.still)}|w${this.waterIndex(now)}|c${this.cloudStep(now)}|${record}`;
+    const lantern = this.lantern ? lanternKey(this.lamp, now, this.lantern.count, this.still) : "";
+    const fade = this.skyFade(now);
+    const sky = fade < 1 ? `s${Math.floor(fade * 40)}` : "";
+    return `${this.pose}:${frameKey(this.pose, now, this.still)}|w${this.waterIndex(now)}|c${this.cloudStep(now)}|${record}|${lantern}|${sky}`;
   }
 
-  private drawPlane(p: Plane, bitmap: HTMLCanvasElement, cam: View, dx = 0) {
-    const v = this.view(p.id, cam);
-    const d = this.dpr;
-    this.ctx.setTransform(v.s * d, 0, 0, v.s * d, v.ox * d, v.oy * d);
-    const b = p.bbox;
-    this.ctx.drawImage(bitmap, b.x0 + dx, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+  /* ----------------------------------------------------------------- sky */
+
+  /** 0..1 as the sky settles over the painting after the intro. */
+  private skyFade(now: number) {
+    if (!this.introDone || this.skyFrom < 0) return 0;
+    if (this.still) return 1;
+    return ease01((now - this.skyFrom) / SKY_FADE_MS);
   }
 
   /**
-   * The composite: each plane's bitmap under its own transform (the lake's
-   * current drawing in place of the water plane, the clouds tiled and
-   * drifting), then the objects (+hover), record player and person as vectors.
+   * Where a body stands in the painted sky (world units, sky plane): across
+   * by its hour angle (rising on the left, setting on the right), up by its
+   * altitude, from the lake's horizon to as high as every screen shows. It
+   * climbs out of the horizon quickly, so a moon at a modest height clears
+   * the mountains rather than spending the night behind them.
+   */
+  private skySpot(p: SkyPoint) {
+    const w = this.world as WorldInfo;
+    const top = w.h - w.minH + 40;
+    const horizon = w.lake.horizon;
+    const alt = Math.max(-10, Math.min(70, p.alt)) / 70;
+    const up = alt < 0 ? alt : Math.pow(alt, 0.6);
+    return {
+      x: w.w * (0.04 + 0.92 * (0.5 + p.ha / 250)),
+      y: horizon - up * (horizon - top),
+      r: w.w > w.h ? 24 : 30,
+    };
+  }
+
+  /** CSS px of a world point on a plane, under the camera. */
+  private onScreen(id: PlaneId | "objects", x: number, y: number, cam: View) {
+    const v = this.view(id, cam);
+    return { x: x * v.s + v.ox, y: y * v.s + v.oy, s: v.s };
+  }
+
+  /**
+   * The sun and moon, over the sky's far range but behind the clouds, the far
+   * hills and their mist, which take them as they rise and set.
+   */
+  private drawSky(cam: View, fade: number) {
+    const sky = this.sky;
+    if (!sky || fade <= 0) return;
+    const ctx = this.ctx;
+    const v = this.view("sky", cam);
+    const d = this.dpr;
+    ctx.save();
+    ctx.setTransform(v.s * d, 0, 0, v.s * d, v.ox * d, v.oy * d);
+
+    const sunA = sunShows(sky.sun) * fade;
+    if (sunA > 0) {
+      const { x, y, r } = this.skySpot(sky.sun);
+      const low = 1 - ease01(sky.sun.alt / 25);
+      const c = SUN_HIGH.map((h, i) => mix(h, SUN_LOW[i], low)).join(",");
+      const rr = r * (1 + 0.15 * low);
+      // paler through the haze near the horizon
+      ctx.globalAlpha = sunA * (0.6 + 0.4 * ease01(sky.sun.alt / 10));
+      ctx.fillStyle = `rgba(${c},0.14)`;
+      ctx.beginPath();
+      ctx.arc(x, y, rr * 1.7, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = `rgba(${c},0.86)`;
+      ctx.beginPath();
+      ctx.arc(x, y, rr, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    const moonA = moonShows(sky) * fade;
+    if (moonA > 0) {
+      const { x, y, r } = this.skySpot(sky.moon);
+      ctx.globalAlpha = moonA;
+      ctx.translate(x, y);
+      // the unlit side melts into the night; the lit side is bare paper,
+      // which the night's wash leaves uncovered (drawWash)
+      ctx.fillStyle = `rgba(${MOON_SHADOW},${0.55 * sky.dark})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = "rgb(255,253,246)";
+      ctx.fill(new Path2D(moonPath(r, sky.moon.phase)));
+      ctx.strokeStyle = `rgba(100,100,100,${0.4 - 0.25 * sky.dark})`;
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** The lake's outline under the water plane's transform, for clipping. */
+  private lakePath(ctx: CanvasRenderingContext2D, cam: View, css = false) {
+    const w = this.world as WorldInfo;
+    const poly = w.lake.poly;
+    const v = css ? this.view("water", cam) : { s: 1, ox: 0, oy: 0 };
+    ctx.beginPath();
+    for (let i = 0; i < poly.length; i += 2) {
+      const px = poly[i] * v.s + v.ox;
+      const py = poly[i + 1] * v.s + v.oy;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  /** A low sun lays a red glint across the water. */
+  private drawSunGlade(ctx: CanvasRenderingContext2D, cam: View, now: number, fade: number) {
+    const sky = this.sky;
+    if (!sky || fade <= 0) return;
+    const a = sunShows(sky.sun) * (1 - ease01((sky.sun.alt - 3) / 14)) * fade;
+    if (a <= 0.01) return;
+    const w = this.world as WorldInfo;
+    const sun = this.skySpot(sky.sun);
+    const sx = this.onScreen("sky", sun.x, sun.y, cam).x;
+    const v = this.view("water", cam);
+    const d = this.dpr;
+    ctx.save();
+    ctx.setTransform(v.s * d, 0, 0, v.s * d, v.ox * d, v.oy * d);
+    this.lakePath(ctx, cam);
+    ctx.clip();
+    const depth = (w.lake.bottom - w.lake.horizon) * 0.55;
+    glade(ctx, (sx - v.ox) / v.s, w.lake.horizon + 4, depth, sun.r * 0.9, this.waterIndex(now), (x0, y, gw, gh, t) => {
+      ctx.fillStyle = `rgba(${SUN_LOW.join(",")},${0.5 * a * (1 - 0.75 * t)})`;
+      ctx.fillRect(x0, y, gw, gh);
+    });
+    ctx.restore();
+  }
+
+  /** Whether night or twilight is washing over the picture. */
+  private washing(fade: number) {
+    const sky = this.sky;
+    return !!sky && (sky.dark * fade >= 0.01 || sky.warm * fade >= 0.01);
+  }
+
+  /**
+   * Night and twilight, as a wash (in this.wash): indigo at night, warm round
+   * the sun at dusk and dawn. It's laid twice, once over the far layers (sky,
+   * clouds, far hills) and once over the near ones (lake, mountains, corner,
+   * objects), so each leaves its own lights uncovered, in their own depth:
+   * the moon on the far one (a mountain in front of it stays dark, a cloud
+   * over it catches its light), its path on the water on the near one, and
+   * the lantern's light on both.
+   */
+  private buildWash(cam: View, now: number, fade: number, front: boolean) {
+    const sky = this.sky as Sky;
+    const w = this.world as WorldInfo;
+    const dark = sky.dark * fade;
+    const warm = sky.warm * fade;
+    const W = Math.max(1, Math.round(this.cssW * WASH_SCALE));
+    const H = Math.max(1, Math.round(this.cssH * WASH_SCALE));
+    if (this.wash.width !== W || this.wash.height !== H) {
+      this.wash.width = W;
+      this.wash.height = H;
+      this.washCtx = context(this.wash);
+    }
+    const g = this.washCtx;
+    const cw = this.cssW;
+    const ch = this.cssH;
+    g.setTransform(WASH_SCALE, 0, 0, WASH_SCALE, 0, 0);
+    g.globalCompositeOperation = "source-over";
+    g.clearRect(0, 0, cw, ch);
+    const horizon = this.onScreen("far", 0, w.lake.horizon, cam).y;
+
+    if (dark > 0) {
+      const lg = g.createLinearGradient(0, 0, 0, ch);
+      lg.addColorStop(0, `rgba(${NIGHT},${NIGHT_ALPHA[0] * dark})`);
+      lg.addColorStop(Math.max(0.01, Math.min(0.99, horizon / ch)), `rgba(${NIGHT},${NIGHT_ALPHA[1] * dark})`);
+      lg.addColorStop(1, `rgba(${NIGHT},${NIGHT_ALPHA[2] * dark})`);
+      g.fillStyle = lg;
+      g.fillRect(0, 0, cw, ch);
+    }
+    if (warm > 0) {
+      const sun = this.skySpot(sky.sun);
+      const sx = this.onScreen("sky", sun.x, sun.y, cam).x;
+      const rg = g.createRadialGradient(sx, horizon, 0, sx, horizon, cw * 0.95);
+      rg.addColorStop(0, `rgba(${DUSK},${DUSK_ALPHA * warm})`);
+      rg.addColorStop(0.45, `rgba(${DUSK},${DUSK_ALPHA * 0.42 * warm})`);
+      rg.addColorStop(1, `rgba(${DUSK},0)`);
+      g.fillStyle = rg;
+      g.fillRect(0, 0, cw, ch);
+    }
+
+    if (dark > 0.02) {
+      g.globalCompositeOperation = "destination-out";
+      const moonA = moonShows(sky) * fade * Math.min(1, sky.moon.lit * 1.6 + 0.2);
+      if (moonA > 0) {
+        const m = this.skySpot(sky.moon);
+        const p = this.onScreen("sky", m.x, m.y, cam);
+        const r = m.r * p.s;
+        if (!front) {
+          const halo = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4.5);
+          halo.addColorStop(0, `rgba(0,0,0,${moonA})`);
+          halo.addColorStop(1.05 / 4.5, `rgba(0,0,0,${moonA})`);
+          halo.addColorStop(0.42, `rgba(0,0,0,${0.32 * moonA})`);
+          halo.addColorStop(1, "rgba(0,0,0,0)");
+          g.fillStyle = halo;
+          g.fillRect(p.x - r * 5, p.y - r * 5, r * 10, r * 10);
+        }
+        // its path across the water, if it's up
+        else if (sky.moon.alt > 0) {
+          g.save();
+          this.lakePath(g, cam, true);
+          g.clip();
+          const lakeBottom = this.onScreen("water", 0, w.lake.bottom, cam).y;
+          glade(g, p.x, horizon + 2, (lakeBottom - horizon) * 0.6, r * 0.9, this.waterIndex(now), (x0, y, gw, gh, t) => {
+            g.fillStyle = `rgba(0,0,0,${0.75 * moonA * (1 - 0.7 * t)})`;
+            g.fillRect(x0, y, gw, gh * 1.4);
+          });
+          g.restore();
+        }
+      }
+
+      const k = this.lamp === "lit" ? 1 : this.lamp === "idle" ? 0.45 : 0;
+      if (this.lantern && k > 0) {
+        const b = this.lantern.bbox;
+        const p = this.onScreen("objects", (b.x0 + b.x1) / 2, b.y0 + (b.y1 - b.y0) * 0.32, cam);
+        const key = lanternKey(this.lamp, now, this.lantern.count, this.still);
+        const flick = key.startsWith("lit") ? [1, 0.95, 1.04, 0.97][Number(key.slice(3)) % 4] : 1;
+        const r = (b.x1 - b.x0) * p.s * 2.6 * flick;
+        const hole = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+        hole.addColorStop(0, `rgba(0,0,0,${0.9 * k})`);
+        hole.addColorStop(0.35, `rgba(0,0,0,${0.55 * k})`);
+        hole.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = hole;
+        g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+        g.globalCompositeOperation = "source-over";
+        const pool = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 0.8);
+        pool.addColorStop(0, `rgba(${LAMPLIGHT},${0.32 * k * dark})`);
+        pool.addColorStop(1, `rgba(${LAMPLIGHT},0)`);
+        g.fillStyle = pool;
+        g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+  }
+
+  /** Lays this.wash over everything drawn on ctx so far (or, atop, only over what's painted there). */
+  private layWash(ctx: CanvasRenderingContext2D, atop = false) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = atop ? "source-atop" : "source-over";
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.wash, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.restore();
+  }
+
+  private drawPlane(ctx: CanvasRenderingContext2D, p: Plane, bitmap: HTMLCanvasElement, cam: View, dx = 0) {
+    const v = this.view(p.id, cam);
+    const d = this.dpr;
+    ctx.setTransform(v.s * d, 0, 0, v.s * d, v.ox * d, v.oy * d);
+    const b = p.bbox;
+    ctx.drawImage(bitmap, b.x0 + dx, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+  }
+
+  /**
+   * The composite: the sun and moon, then each plane's bitmap under its own
+   * transform (the lake's current drawing in place of the water plane, the
+   * clouds tiled and drifting), then the objects (+hover), record player,
+   * lantern and person as vectors. At night and twilight the far layers are
+   * washed as soon as they're down, and the near ones are drawn apart, washed
+   * where they're painted, and laid over them.
    */
   render(now: number) {
     const w = this.world;
     if (!this.introDone || !w) return;
     if (!this.waterBitmaps[0]) this.bakeWater(0);
     const t0 = performance.now();
-    const ctx = this.ctx;
-    this.clear(ctx);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = this.moving ? "medium" : "high";
-    ctx.globalAlpha = 1;
+    const main = this.ctx;
+    this.clear(main);
+    main.imageSmoothingEnabled = true;
+    main.imageSmoothingQuality = this.moving ? "medium" : "high";
+    main.globalAlpha = 1;
     const cam = this.camera();
+    if (this.skyFrom < 0) this.skyFrom = now;
+    const fade = this.skyFade(now);
+    const washing = this.washing(fade);
 
+    let ctx = main;
     for (const id of PLANES) {
       const p = this.planes.get(id);
       if (!p) continue;
       if (id === "water") {
+        // the near layers start here
+        if (washing) {
+          this.buildWash(cam, now, fade, false);
+          this.layWash(main);
+          if (this.front.width !== this.canvas.width || this.front.height !== this.canvas.height) {
+            this.front.width = this.canvas.width;
+            this.front.height = this.canvas.height;
+            this.frontCtx = context(this.front);
+          }
+          ctx = this.frontCtx;
+          this.clear(ctx);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = main.imageSmoothingQuality;
+          ctx.globalAlpha = 1;
+        }
         const bmp = this.waterBitmaps[this.waterIndex(now)];
-        if (bmp) this.drawPlane(p, bmp, cam);
+        if (bmp) this.drawPlane(ctx, p, bmp, cam);
+        this.drawSunGlade(ctx, cam, now, fade);
       } else if (id === "clouds") {
         const shift = (this.cloudStep(now) * CLOUD_DRIFT) % w.cloudTile;
-        this.drawPlane(p, p.canvas, cam, shift);
-        this.drawPlane(p, p.canvas, cam, shift - w.cloudTile);
+        this.drawPlane(ctx, p, p.canvas, cam, shift);
+        this.drawPlane(ctx, p, p.canvas, cam, shift - w.cloudTile);
       } else {
-        this.drawPlane(p, p.canvas, cam);
+        this.drawPlane(ctx, p, p.canvas, cam);
+        // the sun and moon hang in front of the sky's far range and haze, behind the clouds
+        if (id === "sky") this.drawSky(cam, fade);
       }
     }
 
@@ -1118,6 +1495,11 @@ export class InkRenderer {
       drawAll(items);
       if (this.hover === "record") drawAll(items, HOVER_ALPHA);
     }
+    if (this.lantern) {
+      const items = this.lantern.frames[lanternKey(this.lamp, now, this.lantern.count, this.still)] || [];
+      drawAll(items);
+      if (this.hover === "claude") drawAll(items, HOVER_ALPHA);
+    }
     if (chair) {
       drawAll(chair.items);
       if (this.hover === "person") drawAll(chair.items, HOVER_ALPHA);
@@ -1135,6 +1517,14 @@ export class InkRenderer {
       }
     }
     ctx.globalAlpha = 1;
+    if (ctx !== main) {
+      this.buildWash(cam, now, fade, true);
+      this.layWash(ctx, true);
+      main.save();
+      main.setTransform(1, 0, 0, 1, 0, 0);
+      main.drawImage(this.front, 0, 0);
+      main.restore();
+    }
     this.shownKey = this.idleKey(now);
     this.watchSpeed(performance.now() - t0);
   }
@@ -1149,7 +1539,7 @@ export class InkRenderer {
     this.rebuildPlanes();
   }
 
-  /** True when anything animated (person, lake, clouds, record) is due a new frame. */
+  /** True when anything animated (person, lake, clouds, record, lantern) is due a new frame. */
   frameDue(now: number): boolean {
     if (!this.introDone || !this.person) return false;
     return this.idleKey(now) !== this.shownKey;

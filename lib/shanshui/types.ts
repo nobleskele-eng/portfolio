@@ -43,8 +43,12 @@ export interface BBox {
 export type Layout = "wide" | "tall";
 export type Pose = "wave" | "sit" | "sleep";
 export type ObjectId = "shelf" | "board" | "chair";
-/** What a visitor can click: the person (with their chair), board, shelf, record player. */
-export type HotspotId = "person" | "board" | "shelf" | "record";
+/** What a visitor can click: the person (with their chair), board, shelf, record player, lantern. */
+export type HotspotId = "person" | "board" | "shelf" | "record" | "claude";
+/** What can open a scroll: the hotspots, and the sky's inscription (Toronto's time). */
+export type PanelId = HotspotId | "sky";
+/** The lantern (Claude Code): lit while working, an ember while idle, dark when offline. */
+export type Lamp = "lit" | "idle" | "off";
 
 /**
  * Depth planes, back to front. Each is baked into its own bitmap and moves at
@@ -85,6 +89,14 @@ export interface RecordPart {
   frames: Record<string, Op[]>;
 }
 
+export interface LanternPart {
+  kind: "lantern";
+  t0: number;
+  t1: number;
+  /** "off", "idle" plus "lit0"…"litN" */
+  frames: Record<string, Op[]>;
+}
+
 export interface PersonPart {
   kind: "person";
   t0: number;
@@ -93,7 +105,7 @@ export interface PersonPart {
   frames: Record<Pose, Record<string, Op[]>>;
 }
 
-export type ScenePart = GroupPart | ObjectPart | RecordPart | PersonPart;
+export type ScenePart = GroupPart | ObjectPart | RecordPart | LanternPart | PersonPart;
 
 /** The lake's surface: a closed polygon (far shoreline, then the frame's bottom). */
 export interface LakeInfo {
