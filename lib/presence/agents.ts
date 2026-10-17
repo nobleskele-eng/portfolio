@@ -14,6 +14,7 @@ function offline(source: AgentSource): AgentPresence {
     updatedAt: null,
     source,
     rawStatus: null,
+    project: null,
   };
 }
 
@@ -27,9 +28,8 @@ function str(obj: Record<string, unknown>, key: string): string | null {
  * Reads presence:{source} from Redis and projects the stored status object onto
  * the AgentPresence shape. A missing key or an unparseable value is offline.
  *
- * Staleness (lastSeen older than STALE_THRESHOLD_MS) is NOT decided here — the
- * read route (app/api/presence/route.ts) applies that uniformly across all
- * sources. This reader just surfaces `updatedAt` = lastSeen for it to judge.
+ * Staleness is NOT decided here — the read routes apply it (lib/presence/fresh.ts).
+ * This reader just surfaces `updatedAt` = lastSeen for them to judge.
  */
 export async function getAgentPresence(
   source: AgentSource
@@ -52,6 +52,13 @@ export async function getAgentPresence(
 
   const status = stored.status;
   const rawStatus = str(status, "state") ?? str(status, "status");
+  const project = str(status, "project");
+
+  // the session closed (Claude Code's SessionEnd): off now, but keep when
+  if (status.ended === true) {
+    return { ...offline(source), updatedAt: stored.lastSeen, project };
+  }
+
   const normalized: PresenceStatus = rawStatus === "idle" ? "idle" : "active";
 
   return {
@@ -60,5 +67,6 @@ export async function getAgentPresence(
     updatedAt: stored.lastSeen,
     source,
     rawStatus,
+    project,
   };
 }

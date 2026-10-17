@@ -1,15 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import type { HotspotId, Layout, Pose, WorkerMessage } from "@/lib/shanshui/types";
+import { PERIOD_LABEL, SKY_PLACE } from "@/content/sky";
+import type { HotspotId, Lamp, Layout, PanelId, Pose, WorkerMessage } from "@/lib/shanshui/types";
+import { phaseName, type SkyState } from "@/lib/sky";
 import { IntroTitle, TITLE_FIT, titleSvg } from "./introTitle";
 import { InkRenderer, type Hotspot } from "./renderer";
+import { SkyGlyph } from "./SkyGlyph";
 
 // Viewports narrower than this (width / height) get the tall phone layout.
 const TALL_BELOW = 0.8;
 // How long the seals stay up after the intro to show what's clickable.
 const HINT_MS = 3200;
-// Idle frame swaps (person, lake, clouds, record) are checked at this cadence.
+// Idle frame swaps (person, lake, clouds, record, lantern) are checked at this cadence.
 const IDLE_TICK_MS = 60;
 // How much page there is to scroll through while the camera pushes into the
 // corner, in viewport heights.
@@ -71,6 +74,14 @@ function TitleSketch() {
   );
 }
 
+/** Writing on the paper: ink by day, pale as moonlight on the night's wash. */
+function inkFor(night: number, alpha = 0.8) {
+  const day = [61, 58, 52];
+  const dark = [236, 226, 204];
+  const c = day.map((v, i) => Math.round(v + (dark[i] - v) * night));
+  return `rgba(${c.join(",")},${alpha})`;
+}
+
 function tileToUrl(size: number, data: Uint8ClampedArray): string {
   const c = document.createElement("canvas");
   c.width = size;
@@ -83,6 +94,8 @@ function tileToUrl(size: number, data: Uint8ClampedArray): string {
 export default function Landscape({
   pose,
   playing,
+  lamp,
+  sky,
   seals,
   labels,
   hidden,
@@ -92,13 +105,17 @@ export default function Landscape({
   pose: Pose;
   /** Spotify is playing: the record spins */
   playing: boolean;
+  /** Claude Code's state: the lantern burns, smoulders or is dark */
+  lamp: Lamp;
+  /** the sky over Toronto: sun, moon, dusk and night; null until known */
+  sky: SkyState | null;
   /** red seal text shown on hover, per hotspot */
   seals: Record<HotspotId, string>;
   /** accessible names, per hotspot */
   labels: Record<HotspotId, string>;
   /** a panel is open: take the hotspots out of the tab order */
   hidden: boolean;
-  onOpen: (id: HotspotId, trigger: HTMLButtonElement) => void;
+  onOpen: (id: PanelId, trigger: HTMLButtonElement) => void;
   onLayout: (layout: Layout) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -112,6 +129,10 @@ export default function Landscape({
   poseRef.current = pose;
   const playingRef = useRef(playing);
   playingRef.current = playing;
+  const lampRef = useRef(lamp);
+  lampRef.current = lamp;
+  const skyRef = useRef(sky);
+  skyRef.current = sky;
   const trackRef = useRef<HTMLDivElement>(null);
   // the part of the stage a phone always shows, whether or not its browser bars are out
   const safeRef = useRef<HTMLDivElement>(null);
@@ -132,6 +153,9 @@ export default function Landscape({
   const [hint, setHint] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const reduced = useReducedMotion();
+  // writing over the sky turns pale once the night's wash is dark enough
+  // (only after the intro, when the wash settles in)
+  const night = ready && sky ? Math.max(0, Math.min(1, (sky.dark - 0.35) / 0.3)) : 0;
   const reducedRef = useRef(reduced);
   reducedRef.current = reduced;
 
@@ -331,6 +355,8 @@ export default function Landscape({
     const r = new InkRenderer(canvas);
     r.pose = poseRef.current;
     r.playing = playingRef.current;
+    r.lamp = lampRef.current;
+    if (skyRef.current) r.setSky(skyRef.current, performance.now());
     r.setStill(reduced);
     if (!animate) r.skip(performance.now());
     rendererRef.current = r;
@@ -355,6 +381,7 @@ export default function Landscape({
         if (p.kind === "group") r.addGroup(p, now);
         else if (p.kind === "object") r.addObject(p, now);
         else if (p.kind === "record") r.setRecord(p, now);
+        else if (p.kind === "lantern") r.setLantern(p, now);
         else r.setPerson(p, now);
         setHotspots(r.hotspots());
       }
@@ -375,7 +402,7 @@ export default function Landscape({
     return () => clearTimeout(t);
   }, [ready, reduced]);
 
-  // idle: the person, the lake and the record each swap frames on their own clock
+  // idle: the person, the lake, the record and the lantern each swap frames on their own clock
   useEffect(() => {
     if (!ready || reduced) return;
     const id = setInterval(() => {
@@ -401,6 +428,14 @@ export default function Landscape({
   useEffect(() => {
     rendererRef.current?.setPlaying(playing, performance.now());
   }, [playing]);
+
+  useEffect(() => {
+    rendererRef.current?.setLamp(lamp, performance.now());
+  }, [lamp]);
+
+  useEffect(() => {
+    if (sky) rendererRef.current?.setSky(sky, performance.now());
+  }, [sky]);
 
   // any click, tap, key or scroll during the intro skips to the finished
   // painting (except on controls marked data-keep-intro, like the song player)
@@ -481,8 +516,30 @@ export default function Landscape({
         </div>
       )}
 
+      {sky && (
+        <button
+          type="button"
+          aria-label={`Toronto, ${sky.clock}: ${PERIOD_LABEL[sky.period]}, ${phaseName(sky.moon.phase)}. About the sky`}
+          tabIndex={ready && !hidden ? 0 : -1}
+          aria-hidden={!ready || hidden || undefined}
+          className={`ink-inscription ink-focus ${ready ? "ink-inscription--on" : ""}`}
+          style={{ color: inkFor(night) }}
+          onClick={(e) => onOpen("sky", e.currentTarget)}
+        >
+          <span className="ink-inscription__text">
+            {SKY_PLACE} · {sky.clock}
+          </span>
+          <span className="ink-inscription__seal">
+            <SkyGlyph sky={sky} size={16} color="#f6ecd9" />
+          </span>
+        </button>
+      )}
+
       <div ref={safeRef} aria-hidden className="ink-safe pointer-events-none absolute inset-x-0 top-0">
-        <div className={`ink-scroll-hint ${ready && !scrolled && !hidden ? "ink-scroll-hint--on" : ""}`}>
+        <div
+          className={`ink-scroll-hint ${ready && !scrolled && !hidden ? "ink-scroll-hint--on" : ""}`}
+          style={{ color: inkFor(night, 0.75) }}
+        >
           <span>scroll</span>
           <svg width="14" height="22" viewBox="0 0 14 22">
             <path d="M7 1 C6.4 7, 7.6 12, 7 19 M2.5 14.5 C4.5 16.5, 5.8 18, 7 20.5 C8.2 18, 9.5 16.5, 11.5 14.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />

@@ -31,7 +31,7 @@ function packPart(part: ScenePart, transfer: Transferable[]): ScenePart {
     return { ...part, ops: frames ? frames[0] : pack(part.ops, transfer), frames };
   }
   if (part.kind === "object") return { ...part, ops: pack(part.ops, transfer) };
-  if (part.kind === "record") {
+  if (part.kind === "record" || part.kind === "lantern") {
     const frames: Record<string, Op[]> = {};
     for (const key of Object.keys(part.frames)) frames[key] = pack(part.frames[key], transfer);
     return { ...part, frames };

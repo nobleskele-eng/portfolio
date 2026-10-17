@@ -159,7 +159,67 @@ body {
   transform: translate(-50%, 6px);
   transition:
     opacity 400ms ease,
-    transform 400ms ease;
+    transform 400ms ease,
+    color 2.6s ease;
+}
+
+/* The inscription in the sky's corner: Toronto's time written down the paper,
+   stamped with a seal of the sun or the moon in its phase. Ink by day, pale
+   at night (its colour is set inline, and eases as the night settles). */
+.ink-inscription {
+  @apply font-ink;
+  position: absolute;
+  left: max(1.1rem, env(safe-area-inset-left));
+  top: max(1.25rem, env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 2px;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 1.2s ease,
+    color 2.6s ease;
+}
+
+.ink-inscription--on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ink-inscription__text {
+  writing-mode: vertical-rl;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.ink-inscription__seal {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--seal);
+  opacity: 0.9;
+  transform: rotate(-3deg);
+  transition: transform 300ms ease;
+}
+
+.ink-inscription:hover .ink-inscription__seal,
+.ink-inscription:focus-visible .ink-inscription__seal {
+  transform: rotate(-3deg) scale(1.12);
+}
+
+@media (hover: none) {
+  .ink-inscription__text {
+    font-size: 14px;
+  }
 }
 
 .ink-scroll-hint--on {
@@ -178,11 +238,35 @@ body {
   }
 }
 
+/* The lantern scroll's spark flickers while Claude is working. */
+.claude-spark {
+  animation: claude-flicker 2.6s ease-in-out infinite;
+}
+
+@keyframes claude-flicker {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  35% {
+    transform: rotate(4deg) scale(0.93);
+    opacity: 0.82;
+  }
+  65% {
+    transform: rotate(-3deg) scale(1.03);
+    opacity: 0.95;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ink-seal {
+  .ink-seal,
+  .ink-inscription,
+  .ink-inscription__seal {
     transition: none;
   }
-  .ink-scroll-hint--on {
+  .ink-scroll-hint--on,
+  .claude-spark {
     animation: none;
   }
 }
