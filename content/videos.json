@@ -1,0 +1,118 @@
+{
+  "memories": {
+    "drive": "1vUuB1q-awCm8013RUlBoFR-MtULTLSWa",
+    "bytes": 17096344,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/memories-c3b3bb69.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/memories.webp",
+    "width": 1920,
+    "height": 800,
+    "duration": 50.56
+  },
+  "look-in-my-eyes": {
+    "drive": "1KRN0s5q3PZ711pZPwj54FzAGnyITfOYr",
+    "bytes": 35809599,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/look-in-my-eyes-1e3d08b4.mp4",
+        "type": "video/mp4; codecs=\"hvc1\""
+      },
+      {
+        "src": "https://media.stayvyxed.com/look-in-my-eyes-8a6950d3.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/look-in-my-eyes.webp",
+    "width": 3840,
+    "height": 1600,
+    "duration": 34.56
+  },
+  "original": {
+    "drive": "19kkm8L62SRvEiuLKjqOMl6d5j_qJgVFM",
+    "bytes": 4099692,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/original-c47ec7ed.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/original.webp",
+    "width": 1882,
+    "height": 800,
+    "duration": 18.56
+  },
+  "wearenotplaying": {
+    "drive": "1nMzyeqHre5UaH38TimYt8YYVE4Avy5CA",
+    "bytes": 30175900,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/wearenotplaying-f978f8ae.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/wearenotplaying.webp",
+    "width": 1440,
+    "height": 1080,
+    "duration": 15.33
+  },
+  "dontplaybytharules": {
+    "drive": "1fwDsKzvR6Bs9zzfNkJdxMsEb84yF7vbZ",
+    "bytes": 31537000,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/dontplaybytharules-c3bc2270.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/dontplaybytharules.webp",
+    "width": 1440,
+    "height": 1080,
+    "duration": 15.56
+  },
+  "imyeat": {
+    "drive": "1OOLLOem1lFzZQDw8P-0A-pXYm5FcqHSp",
+    "bytes": 66868404,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/imyeat-2fa90fb2.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/imyeat.webp",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10
+  },
+  "stay": {
+    "drive": "1OsQku61bvovjR8_5ickG7dG7vdMboEV-",
+    "bytes": 24060765,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/stay-86294391.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/stay.webp",
+    "width": 1440,
+    "height": 1080,
+    "duration": 12.67
+  },
+  "bae": {
+    "drive": "18XYOQW8VwotsXDw4RnAenFHIwdHTa9rx",
+    "bytes": 7217092,
+    "sources": [
+      {
+        "src": "https://media.stayvyxed.com/bae-216405c8.mp4",
+        "type": "video/mp4"
+      }
+    ],
+    "poster": "/videos/posters/bae.webp",
+    "width": 1440,
+    "height": 1080,
+    "duration": 3.33
+  }
+}

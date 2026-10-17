@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { HOLD_SONG, RELEASE_SONG } from "@/lib/song-hold";
 import { SONG } from "@/content/song";
 import { INK } from "./LinkIcons";
 
@@ -9,12 +10,16 @@ import { INK } from "./LinkIcons";
  * the visitor interacts, so if autoplay is refused the first click, tap or key
  * anywhere starts it. Pausing here sticks for the rest of the visit. Nothing
  * is fetched until it plays, and autoplay isn't tried until the page has
- * loaded, so the song never competes with the page itself.
+ * loaded, so the song never competes with the page itself. While a video on
+ * the bookshelf plays the song is held, and it picks up again afterwards if it
+ * was playing before.
  */
 export default function SongPlayer() {
   const rootRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const pausedByUser = useRef(false);
+  const held = useRef(false);
+  const resumeAfterHold = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [blocked, setBlocked] = useState(false);
 
@@ -24,21 +29,40 @@ export default function SongPlayer() {
     const start = (e?: Event) => {
       // the button's own tap/key also fires touchend/keydown first; leave it to toggle()
       if (e?.target instanceof Node && rootRef.current?.contains(e.target)) return;
-      if (pausedByUser.current || !a.paused) return;
+      // the click that starts a video mustn't start the song under it
+      if (held.current || pausedByUser.current || !a.paused) return;
       a.volume = SONG.volume;
       a.play().then(
         () => setBlocked(false),
         () => setBlocked(true),
       );
     };
+    const onHold = () => {
+      if (held.current) return;
+      held.current = true;
+      resumeAfterHold.current = !a.paused;
+      a.pause();
+    };
+    const onRelease = () => {
+      if (!held.current) return;
+      held.current = false;
+      if (resumeAfterHold.current && !pausedByUser.current) {
+        a.volume = SONG.volume;
+        a.play().catch(() => setBlocked(true));
+      }
+    };
     const onLoad = () => start();
     if (document.readyState === "complete") start();
     else window.addEventListener("load", onLoad, { once: true });
     const events = ["click", "keydown", "touchend"] as const;
     events.forEach((e) => window.addEventListener(e, start));
+    window.addEventListener(HOLD_SONG, onHold);
+    window.addEventListener(RELEASE_SONG, onRelease);
     return () => {
       window.removeEventListener("load", onLoad);
       events.forEach((e) => window.removeEventListener(e, start));
+      window.removeEventListener(HOLD_SONG, onHold);
+      window.removeEventListener(RELEASE_SONG, onRelease);
     };
   }, []);
 

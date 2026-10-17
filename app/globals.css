@@ -187,6 +187,46 @@ body {
   }
 }
 
+/* A video's scrubber: a thin paper line, inked up to --p, with a round nib. */
+.ink-range {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ink-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #f3e9d3 var(--p, 0%), rgba(243, 233, 211, 0.3) var(--p, 0%));
+}
+
+.ink-range::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #f3e9d3 var(--p, 0%), rgba(243, 233, 211, 0.3) var(--p, 0%));
+}
+
+.ink-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #f3e9d3;
+  box-shadow: 0 0 0 2px rgba(178, 58, 44, 0.85);
+}
+
+.ink-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #f3e9d3;
+  box-shadow: 0 0 0 2px rgba(178, 58, 44, 0.85);
+}
+
 /* The song player: a small paper chip in the bottom-right corner. */
 .ink-player {
   position: fixed;
