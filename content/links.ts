@@ -9,5 +9,5 @@ export const LINKS: { label: string; handle: string; href: string; icon: LinkIco
   { label: "Instagram", handle: "@yichxxn", href: "https://www.instagram.com/yichxxn/", icon: "instagram" },
   { label: "Last.fm", handle: "vyxae", href: "https://www.last.fm/user/vyxae", icon: "lastfm" },
   { label: "GitHub", handle: "nobleskele-eng", href: "https://github.com/nobleskele-eng", icon: "github" },
-  { label: "Discord", handle: ".vyxed", href: "https://discord.com/users/995695062463823944", icon: "discord" },
+  { label: "Discord", handle: "stayvyxed", href: "https://discord.com/users/995695062463823944", icon: "discord" },
 ];

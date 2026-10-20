@@ -54,7 +54,7 @@ halo and its path on the lake, and the lantern's light left uncovered.
   in `lib/shanshui/objects.js`; depth planes, mist, lake shape and the zoom
   target (`focus`) are in `scenes.js` too
 - **Person's pose:** follows Discord via `/api/presence/discord` (online/dnd
-  waves, idle sits, offline sleeps); hovering shows `<status> @.vyxed`
+  waves, idle sits, offline sleeps); hovering shows `<status> @stayvyxed`
 - **Record player:** spins while `/api/presence/spotify` says something is
   playing
 - **Lantern:** follows Claude Code via `/api/presence/claude`, fed by the hook
