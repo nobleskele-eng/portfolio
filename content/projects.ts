@@ -4,7 +4,7 @@
 // export in content/after-effects/ to show under it.
 export const PROJECTS_TITLE = "Projects";
 export const SHELF_HINT = "pick a volume";
-export const NO_VIDEO_YET = "The video for this one is on the way.";
+export const NO_VIDEO_YET = "Video coming soon.";
 
 export type ShelfId = "vfx" | "mograph" | "animation" | "coding";
 
@@ -12,7 +12,7 @@ export type ShelfId = "vfx" | "mograph" | "animation" | "coding";
 export const SHELVES: { id: ShelfId; title: string; note?: string }[] = [
   { id: "vfx", title: "VFX" },
   { id: "mograph", title: "Motion Graphics" },
-  { id: "animation", title: "Animation", note: "A couple more in the works." },
+  { id: "animation", title: "Animation", note: "More in the works." },
   { id: "coding", title: "Coding" },
 ];
 
@@ -47,7 +47,7 @@ export const WORKS: Work[] = [
     slug: "stanza",
     shelf: "coding",
     title: "Stanza",
-    note: "A themeable desktop mini player for Spotify and SoundCloud, built typography-first: the UI is carried by type and motion, not album art.",
+    note: "A typography-first desktop mini player for Spotify and SoundCloud.",
     tools: ["Tauri", "TypeScript", "Windows & macOS"],
     href: "https://github.com/nobleskele-eng/Stanza-dev",
   },
