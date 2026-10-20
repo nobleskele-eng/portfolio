@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import type { AgentSource } from "@/lib/presence/types";
@@ -8,6 +9,9 @@ import type { AgentSource } from "@/lib/presence/types";
 // stored `lastSeen`. Kept generous so a paused agent's last status is still
 // readable for debugging.
 const GC_TTL_SECONDS = 86_400;
+
+// Largest body accepted. The real hooks send well under 1 KB.
+const MAX_BODY_BYTES = 4096;
 
 const VALID_SOURCES: AgentSource[] = ["claude-code", "after-effects"];
 
@@ -36,17 +40,28 @@ function isValidBody(value: unknown): value is PresenceUpdateBody {
   );
 }
 
+/** Constant-time compare, so response timing can't leak the token. */
+function tokenMatches(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  const hash = (v: string) => createHash("sha256").update(v).digest();
+  return timingSafeEqual(hash(provided), hash(`Bearer ${expected}`));
+}
+
 export async function POST(req: Request) {
   const expected = process.env.PRESENCE_WRITE_TOKEN;
-  const provided = req.headers.get("authorization");
 
-  if (!expected || provided !== `Bearer ${expected}`) {
+  if (!expected || !tokenMatches(req.headers.get("authorization"), expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const text = await req.text();
+  if (Buffer.byteLength(text) > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "Body too large" }, { status: 413 });
   }
 
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = JSON.parse(text);
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
@@ -61,7 +76,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const { source, status, timestamp } = payload;
+  const { source, status } = payload;
+  // A timestamp in the future would never go stale; cap it at now.
+  const timestamp = Math.min(payload.timestamp, Date.now());
 
   // Store the raw status object plus a lastSeen stamp. The reader
   // (lib/presence/agents.ts) is responsible for projecting this onto the

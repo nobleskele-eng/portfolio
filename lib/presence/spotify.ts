@@ -37,7 +37,13 @@ const OFFLINE: SpotifyPresence = {
   trackUrl: null,
 };
 
+// Reused across requests on a warm instance, so a burst of visitors (or
+// someone spamming the endpoint) doesn't hit Spotify's token endpoint each time.
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
 async function getAccessToken(): Promise<string | null> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.value;
+
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
@@ -61,8 +67,12 @@ async function getAccessToken(): Promise<string | null> {
 
   if (!res.ok) return null;
 
-  const data = (await res.json()) as { access_token?: string };
-  return data.access_token ?? null;
+  const data = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!data.access_token) return null;
+  // Refresh a minute early so a token never expires mid-request.
+  const ttlMs = ((data.expires_in ?? 3600) - 60) * 1000;
+  cachedToken = { value: data.access_token, expiresAt: Date.now() + ttlMs };
+  return data.access_token;
 }
 
 /**
