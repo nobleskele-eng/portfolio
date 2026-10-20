@@ -3,7 +3,6 @@ import { ABOUT } from "@/content/about";
 import type { AeProject } from "@/content/after-effects";
 import { LINKS, LINKS_TITLE } from "@/content/links";
 import {
-  CLAUDE_ABOUT,
   CLAUDE_DARK,
   CLAUDE_HOOK_SOURCE,
   CLAUDE_STATE,
@@ -13,7 +12,7 @@ import {
   SPOTIFY_PROFILE,
 } from "@/content/presence";
 import type { ShelfId } from "@/content/projects";
-import { PERIOD_LABEL, SKY_ABOUT, SKY_TITLE } from "@/content/sky";
+import { PERIOD_LABEL, SKY_TITLE } from "@/content/sky";
 import { ago } from "@/lib/clock";
 import type { AgentPresence, SpotifyPresence } from "@/lib/presence/types";
 import { phaseName, sunTimes, torontoClock, torontoDay, type SkyState } from "@/lib/sky";
@@ -223,9 +222,8 @@ export function ClaudePanel({ titleId, claude }: { titleId: string; claude: Agen
           )}
         </div>
       </div>
-      <p className="font-ink mt-6 text-lg leading-relaxed text-[#3d3a34]">{CLAUDE_ABOUT}</p>
       {CLAUDE_HOOK_SOURCE && (
-        <p className="font-ink mt-4 text-lg">
+        <p className="font-ink mt-6 text-lg">
           <a
             href={CLAUDE_HOOK_SOURCE}
             target="_blank"
@@ -278,7 +276,6 @@ export function SkyPanel({ titleId, sky }: { titleId: string; sky: SkyState | nu
           </p>
         </div>
       </div>
-      <p className="font-ink mt-6 text-lg leading-relaxed text-[#3d3a34]">{SKY_ABOUT}</p>
     </>
   );
 }

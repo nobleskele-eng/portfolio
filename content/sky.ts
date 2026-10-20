@@ -13,4 +13,3 @@ export const PERIOD_LABEL: Record<Period, string> = {
 
 // The sky's scroll.
 export const SKY_TITLE = (clock: string) => `Toronto, ${clock}`;
-export const SKY_ABOUT = "Synced to my local time in Toronto, with the real sunset and moon phase.";

@@ -26,5 +26,4 @@ export const CLAUDE_STATE: Record<PresenceStatus, string> = {
   offline: "away",
 };
 export const CLAUDE_DARK = "Claude isn't working right now.";
-export const CLAUDE_ABOUT = "Claude Code is the AI I build with. This lantern follows it live.";
 export const CLAUDE_HOOK_SOURCE = "https://github.com/nobleskele-eng/portfolio/tree/main/scripts/claude-presence-hook";
