@@ -33,11 +33,11 @@ export interface Work {
 // In display order within each volume; a volume opens on its first.
 export const WORKS: Work[] = [
   { slug: "memories", shelf: "vfx", group: "Vibe", title: "Memories <3", video: "memories" },
+  { slug: "saturn", shelf: "vfx", group: "Vibe", title: "Saturn", video: "saturn" },
   { slug: "look-in-my-eyes", shelf: "vfx", group: "Vibe", title: "Look in my eyes", video: "look-in-my-eyes" },
   { slug: "original", shelf: "vfx", group: "Vibe", title: "Original", video: "original" },
   { slug: "wearenotplaying", shelf: "vfx", group: "Jugg", title: "WEARENOTPLAYING", video: "wearenotplaying" },
   { slug: "dontplaybytharules", shelf: "vfx", group: "Jugg", title: "DONTPLAYBYTHARULES", video: "dontplaybytharules" },
-  { slug: "saturn", shelf: "vfx", title: "Saturn", video: "saturn" },
 
   { slug: "imyeat", shelf: "mograph", title: "IMYEAT", video: "imyeat" },
   { slug: "stay", shelf: "mograph", title: "STAY", video: "stay" },
